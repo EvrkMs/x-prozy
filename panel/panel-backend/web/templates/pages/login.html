@@ -1,0 +1,77 @@
+{{ define "login_page" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{ template "head_assets" . }}
+</head>
+<body>
+  <div class="auth-shell">
+    <!-- Waves (3x-ui style) -->
+    <div class="auth-waves">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+        viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
+        <defs>
+          <path id="wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z"/>
+        </defs>
+        <g class="auth-parallax">
+          <use xlink:href="#wave" x="48" y="0"/>
+          <use xlink:href="#wave" x="48" y="3"/>
+          <use xlink:href="#wave" x="48" y="5"/>
+          <use xlink:href="#wave" x="48" y="7"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Card -->
+    <div class="auth-card-wrap">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h1 class="auth-title">Prozy</h1>
+          <p class="auth-subtitle">Control Panel</p>
+        </div>
+
+        {{ if .Error }}
+          <div class="auth-alert">{{ .Error }}</div>
+        {{ end }}
+
+        <form class="auth-form" method="post" action="{{ .BasePath }}/login">
+          <div class="auth-field">
+            <span class="auth-field__prefix">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="8" cy="5.5" r="3"/>
+                <path d="M2.5 14.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/>
+              </svg>
+            </span>
+            <input class="auth-field__input" name="operator" type="text"
+                   placeholder="Username" value="{{ .Username }}" autocomplete="username" autofocus>
+          </div>
+
+          <div class="auth-field">
+            <span class="auth-field__prefix">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2.5" y="7" width="11" height="7" rx="2"/>
+                <path d="M5 7V5a3 3 0 016 0v2"/>
+              </svg>
+            </span>
+            <input class="auth-field__input" id="password" name="password" type="password"
+                   placeholder="Password" autocomplete="current-password">
+            <button class="auth-field__suffix" type="button" data-password-toggle aria-label="Toggle password">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <ellipse cx="8" cy="8" rx="6" ry="3.5"/>
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="auth-btn-wrap">
+            <button class="auth-button" type="submit">Sign in</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/auth.js" defer></script>
+</body>
+</html>
+{{ end }}

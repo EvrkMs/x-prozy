@@ -1,0 +1,38 @@
+{{ define "page_overview" }}
+<div class="dash-page is-active" data-page-panel="overview">
+
+  <!-- Счётчики -->
+  <div class="node-summary" id="node-summary">
+    <div class="node-summary__stat">
+      <span class="node-summary__num" id="nodes-total">0</span>
+      <span class="node-summary__label">Всего нод</span>
+    </div>
+    <div class="node-summary__stat node-summary__stat--online">
+      <span class="node-summary__num" id="nodes-online">0</span>
+      <span class="node-summary__label">Онлайн</span>
+    </div>
+    <div class="node-summary__stat node-summary__stat--offline">
+      <span class="node-summary__num" id="nodes-offline">0</span>
+      <span class="node-summary__label">Офлайн</span>
+    </div>
+  </div>
+
+  <!-- Список нод -->
+  <div class="node-list" id="node-list">
+    <div class="dash-empty" id="node-list-empty">
+      <div class="dash-empty__icon">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="5.5"/>
+          <circle cx="8" cy="8" r="2"/>
+        </svg>
+      </div>
+      <div class="dash-empty__title">Нет подключённых нод</div>
+      <div class="dash-empty__desc">
+        Установите node-agent на удалённый хост с переменной окружения<br>
+        <code>CLUSTER_TOKEN</code> и укажите адрес панели.
+      </div>
+    </div>
+  </div>
+
+</div>
+{{ end }}

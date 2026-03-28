@@ -1,0 +1,53 @@
+{{ define "page_integrations" }}
+<div class="dash-page" data-page-panel="integrations">
+  <div class="sli-list sli-list--soon">
+    <div class="sli-list__head">
+      <span class="sli-list__title">LDAP</span>
+      <span class="sli-list__soon-badge">В реализации</span>
+    </div>
+    <div class="sli">
+      <div class="sli__meta">
+        <div class="sli__title">LDAP Server</div>
+        <div class="sli__desc">Адрес LDAP-сервера для аутентификации операторов</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input" type="text" disabled placeholder="ldap://example.com:389">
+      </div>
+    </div>
+    <div class="sli sli--last">
+      <div class="sli__meta">
+        <div class="sli__title">Base DN</div>
+        <div class="sli__desc">Корневой DN для поиска пользователей</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input" type="text" disabled placeholder="dc=example,dc=com">
+      </div>
+    </div>
+  </div>
+
+  <div class="sli-list sli-list--soon">
+    <div class="sli-list__head">
+      <span class="sli-list__title">SSO (OIDC)</span>
+      <span class="sli-list__soon-badge">В реализации</span>
+    </div>
+    <div class="sli">
+      <div class="sli__meta">
+        <div class="sli__title">Issuer URL</div>
+        <div class="sli__desc">Keycloak, Google, GitHub или другой OIDC-провайдер</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input" type="text" disabled placeholder="https://idp.example.com/realms/prozy">
+      </div>
+    </div>
+    <div class="sli sli--last">
+      <div class="sli__meta">
+        <div class="sli__title">Client ID</div>
+        <div class="sli__desc">Идентификатор приложения у провайдера</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input" type="text" disabled placeholder="prozy-panel">
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}

@@ -1,0 +1,63 @@
+{{ define "page_account" }}
+<div class="dash-page" data-page-panel="account">
+  <div class="sli-list">
+    <div class="sli-list__head">
+      <span class="sli-list__title">Учётная запись</span>
+    </div>
+    <form id="form-credentials" data-api="/api/settings/credentials">
+      <div class="sli sli--muted">
+        <div class="sli__meta">
+          <div class="sli__title">Текущий логин</div>
+          <div class="sli__desc">Ваш идентификатор для входа в панель</div>
+        </div>
+        <div class="sli__control">
+          <input class="sli__input" type="text" value="{{ .Username }}" readonly tabindex="-1">
+        </div>
+      </div>
+      <div class="sli">
+        <div class="sli__meta">
+          <div class="sli__title">Текущий пароль</div>
+          <div class="sli__desc">Обязателен при смене пароля</div>
+        </div>
+        <div class="sli__control">
+          <input class="sli__input" name="current_password" type="password"
+                 autocomplete="current-password" placeholder="Введите текущий пароль">
+        </div>
+      </div>
+      <div class="sli">
+        <div class="sli__meta">
+          <div class="sli__title">Новый логин</div>
+          <div class="sli__desc">Оставьте пустым, чтобы не менять</div>
+        </div>
+        <div class="sli__control">
+          <input class="sli__input" name="new_username" type="text"
+                 autocomplete="off" placeholder="{{ .Username }}">
+        </div>
+      </div>
+      <div class="sli">
+        <div class="sli__meta">
+          <div class="sli__title">Новый пароль</div>
+          <div class="sli__desc">Минимум 4 символа. Оставьте пустым, чтобы не менять</div>
+        </div>
+        <div class="sli__control">
+          <input class="sli__input" name="new_password" type="password"
+                 autocomplete="new-password" placeholder="Новый пароль">
+        </div>
+      </div>
+      <div class="sli sli--last">
+        <div class="sli__meta">
+          <div class="sli__title">Подтверждение пароля</div>
+          <div class="sli__desc">Повторите новый пароль</div>
+        </div>
+        <div class="sli__control">
+          <input class="sli__input" name="confirm_password" type="password"
+                 autocomplete="new-password" placeholder="Повторите новый пароль">
+        </div>
+      </div>
+      <div class="sli-actions">
+        <button class="s-btn s-btn--primary" type="submit">Сохранить изменения</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{ end }}

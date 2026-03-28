@@ -1,0 +1,32 @@
+{{ define "dashboard_page" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{ template "head_assets" . }}
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+  <div class="dash">
+    {{ template "sidebar" . }}
+
+    <div class="dash-main">
+      {{ template "topbar" . }}
+
+      <div class="dash-content">
+        {{ template "page_overview" . }}
+        {{ template "page_nodes" . }}
+        {{ template "page_account" . }}
+        {{ template "page_panel" . }}
+        {{ template "page_integrations" . }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>window.BASE_PATH = '{{ .BasePath }}';</script>
+  <script src="/static/js/dashboard.js" defer></script>
+</body>
+</html>
+{{ end }}

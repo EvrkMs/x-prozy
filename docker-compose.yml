@@ -1,0 +1,81 @@
+name: x-prozy
+
+services:
+  panel:
+    image: x-prozy-panel:dev
+    build:
+      context: .
+      dockerfile: panel/panel-backend/Dockerfile
+    container_name: x-prozy-panel
+    ports:
+      - "8080:8080"
+    environment:
+      PANEL_ADDR: "0.0.0.0"
+      PANEL_PORT: "8080"
+      GRPC_ADDR: "0.0.0.0"
+      GRPC_PORT: "9090"
+      DB_PATH: "/app/data/panel.db"
+      CLUSTER_TOKEN: "${CLUSTER_TOKEN:-changeme}"
+    cpus: 0.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - panel-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # gRPC proxy: пробрасывает трафик с хоста (127.0.0.1:9090) в panel:9090.
+  # Нода на host network подключается к localhost:9090.
+  grpc-proxy:
+    image: alpine/socat:1.8.0.1
+    container_name: x-prozy-grpc-proxy
+    command: TCP-LISTEN:9090,fork,reuseaddr TCP:panel:9090
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      panel:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Локальная нода для разработки.
+  # В продакшене ноды будут на отдельных хостах (Swarm stack).
+  node:
+    image: x-prozy-node:dev
+    build:
+      context: .
+      dockerfile: node/Dockerfile
+    container_name: x-prozy-node-dev
+    network_mode: host
+    environment:
+      PANEL_GRPC_ADDR: "127.0.0.1:9090"
+      CLUSTER_TOKEN: "${CLUSTER_TOKEN:-changeme}"
+      NODE_NAME: "${NODE_NAME:-dev-node}"
+      SECRET_FILE: "/app/data/reconnect.secret"
+    depends_on:
+      grpc-proxy:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - node-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  panel-data:
+  node-data:

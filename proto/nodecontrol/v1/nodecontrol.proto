@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package nodecontrol.v1;
+
+option go_package = "x-prozy/proto/nodecontrol/v1;nodecontrolv1";
+
+// NodeControl — двунаправленный стрим между нодой и панелью.
+// Нода инициирует подключение, панель принимает.
+service NodeControl {
+  // Connect — основной канал. Нода открывает стрим, шлёт Handshake первым сообщением.
+  // Панель отвечает HandshakeAck. Дальше — heartbeat / status / config в обе стороны.
+  rpc Connect(stream NodeMessage) returns (stream PanelMessage);
+}
+
+// ---------- Node → Panel ----------
+
+message NodeMessage {
+  oneof payload {
+    Handshake      handshake       = 1;
+    Heartbeat      heartbeat       = 2;
+    StatusReport   status_report   = 3;
+  }
+}
+
+// Handshake — первое сообщение от ноды при подключении.
+message Handshake {
+  string cluster_token    = 1; // DEPRECATED — не используется при HMAC-авторизации
+  string reconnect_secret = 2; // пустое при первом подключении; при реконнекте — ранее выданный секрет
+  string hostname         = 3;
+  string os               = 4;
+  string arch             = 5;
+  string version          = 6; // версия node-agent
+  string public_ip        = 7; // публичный IP ноды (определяется автоматически или через NODE_IP env)
+  bytes  auth_nonce       = 8; // 32 случайных байта (используется в HMAC)
+  bytes  auth_hmac        = 9; // HMAC-SHA256(auth_nonce, cluster_token) — токен НЕ передаётся по сети
+}
+
+// Heartbeat — нода жива, периодический пинг (каждые N секунд).
+message Heartbeat {
+  int64 timestamp = 1; // unix millis
+}
+
+// StatusReport — полная метрика ноды (CPU, RAM, Disk, Net, Load, Connections).
+message StatusReport {
+  double cpu_percent   = 1;
+  int32  cpu_cores     = 2;
+  string cpu_model     = 3;
+
+  uint64 mem_total     = 4;
+  uint64 mem_used      = 5;
+  double mem_percent   = 6;
+
+  uint64 swap_total    = 7;
+  uint64 swap_used     = 8;
+  double swap_percent  = 9;
+
+  uint64 disk_total    = 10;
+  uint64 disk_used     = 11;
+  double disk_percent  = 12;
+
+  uint64 net_up        = 13; // cumulative bytes
+  uint64 net_down      = 14;
+
+  double load1         = 15;
+  double load5         = 16;
+  double load15        = 17;
+
+  int32  tcp_count     = 18;
+  int32  udp_count     = 19;
+
+  uint64 uptime        = 20; // seconds
+
+  int64  timestamp     = 21; // unix millis
+}
+
+// ---------- Panel → Node ----------
+
+message PanelMessage {
+  oneof payload {
+    HandshakeAck   handshake_ack  = 1;
+    Ping           ping           = 2;
+    ConfigPush     config_push    = 3;
+    Disconnect     disconnect     = 4;
+  }
+}
+
+// HandshakeAck — панель подтверждает подключение ноды.
+message HandshakeAck {
+  bool   ok               = 1;
+  string error            = 2; // заполнено если ok=false
+  string node_id          = 3; // uuid, назначенный панелью
+  string reconnect_secret = 4; // секрет для будущих реконнектов
+  int32  heartbeat_interval_sec = 5; // рекомендуемый интервал heartbeat
+  int32  status_interval_sec    = 6; // рекомендуемый интервал StatusReport
+}
+
+// Ping — панель пингует ноду (keep-alive / liveness check).
+message Ping {
+  int64 timestamp = 1;
+}
+
+// ConfigPush — панель отправляет конфигурацию ноде (для будущего xray runtime).
+message ConfigPush {
+  string config_json = 1; // Xray JSON config
+  int64  version     = 2; // номер версии конфига для идемпотентности
+}
+
+// Disconnect — панель просит ноду отключиться (graceful shutdown / удаление).
+message Disconnect {
+  string reason = 1;
+}

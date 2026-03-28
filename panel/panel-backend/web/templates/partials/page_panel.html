@@ -1,0 +1,31 @@
+{{ define "page_panel" }}
+<div class="dash-page" data-page-panel="panel">
+  <div class="sli-list">
+    <div class="sli-list__head">
+      <span class="sli-list__title">Конфигурация панели</span>
+    </div>
+    <form data-api="/api/settings/session" class="sli">
+      <div class="sli__meta">
+        <div class="sli__title">Длительность сессии</div>
+        <div class="sli__desc">Время жизни токена авторизации. Формат Go duration: 6h, 24h, 168h (7 дней)</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input" name="duration" type="text"
+               value="{{ .Settings.SessionDuration }}" placeholder="6h">
+        <button class="sli__save" type="submit">Сохранить</button>
+      </div>
+    </form>
+    <form data-api="/api/settings/secret-path" class="sli sli--last">
+      <div class="sli__meta">
+        <div class="sli__title">Секретный путь</div>
+        <div class="sli__desc">Панель доступна только по URL с этим префиксом. После сохранения — автоперенаправление</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input" name="path" type="text"
+               value="{{ .Settings.SecretPath }}" placeholder="/mysecret">
+        <button class="sli__save" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{ end }}

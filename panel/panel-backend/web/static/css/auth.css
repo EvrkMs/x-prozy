@@ -1,0 +1,387 @@
+/* ─── Design tokens (3x-ui inspired) ────────────────────────── */
+:root {
+  /* Base navy */
+  --bg:        #0a1222;
+  --surface:   #151f31;
+  --surface-2: #1d2a3f;
+  --panel:     #151f31;
+
+  /* Borders */
+  --line:        #2c3950;
+  --line-mid:    rgba(255,255,255,0.10);
+  --line-strong: rgba(255,255,255,0.18);
+
+  /* Text */
+  --text:       rgba(255,255,255,0.85);
+  --text-dim:   rgba(255,255,255,0.65);
+  --text-faint: rgba(255,255,255,0.38);
+
+  /* Teal accent */
+  --accent:       #008771;
+  --accent-hover: #009980;
+  --accent-soft:  rgba(0,135,113,0.12);
+  --accent-glow:  rgba(0,135,113,0.22);
+
+  /* Status */
+  --success:      #3ad3ba;
+  --success-soft: rgba(58,211,186,0.10);
+  --danger:       #e04141;
+  --danger-soft:  rgba(224,65,65,0.09);
+  --warning:      #ffa031;
+
+  /* Elevation */
+  --shadow:    0 16px 48px rgba(0,0,0,0.50);
+  --shadow-sm: 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-xs: 0 1px 4px rgba(0,0,0,0.25);
+
+  /* Shape */
+  --radius:    1.5rem;
+  --radius-sm: 0.75rem;
+  --radius-xs: 0.5rem;
+}
+
+/* ─── Reset ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Outfit", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, a { font: inherit; }
+
+/* ─── Scrollbar (3x-ui style) ────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: var(--line);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,0.25); }
+
+/* ─── Auth shell ─────────────────────────────────────────────── */
+.auth-shell {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ─── Waves (3x-ui login) ────────────────────────────────────── */
+.auth-waves {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-waves svg {
+  display: block;
+  width: 100%;
+  height: 18vh;
+  min-height: 80px;
+  max-height: 160px;
+}
+
+.auth-parallax use {
+  fill: rgba(0,135,113,0.06);
+  animation: wave-drift 25s cubic-bezier(0.55,0.5,0.45,0.5) infinite;
+}
+
+.auth-parallax use:nth-child(1) { animation-delay: -2s;  animation-duration: 4s;  opacity: 0.15; }
+.auth-parallax use:nth-child(2) { animation-delay: -3s;  animation-duration: 7s;  opacity: 0.30; }
+.auth-parallax use:nth-child(3) { animation-delay: -4s;  animation-duration: 10s; opacity: 0.50; }
+.auth-parallax use:nth-child(4) { fill: var(--surface);  animation-delay: -5s;  animation-duration: 13s; opacity: 1; }
+
+@keyframes wave-drift {
+  0%   { transform: translate3d(-90px,0,0); }
+  100% { transform: translate3d(85px,0,0); }
+}
+
+/* ─── Card ───────────────────────────────────────────────────── */
+.auth-card-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 1.25rem;
+}
+
+.auth-card {
+  width: 100%;
+  padding: 3rem 2.5rem 2.5rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: card-enter 0.5s both;
+  user-select: none;
+  transition: box-shadow 0.3s;
+}
+
+.auth-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0);
+}
+
+@keyframes card-enter {
+  from { transform: translateY(4rem); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ─── Header ─────────────────────────────────────────────────── */
+.auth-header {
+  text-align: center;
+  margin-bottom: 2.25rem;
+}
+
+.auth-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 2px;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* ─── Alert ──────────────────────────────────────────────────── */
+.auth-alert {
+  margin-bottom: 1.25rem;
+  padding: 10px 16px;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(224,65,65,0.20);
+  background: var(--danger-soft);
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ─── Form ───────────────────────────────────────────────────── */
+.auth-form { display: flex; flex-direction: column; gap: 1rem; }
+
+.auth-field { position: relative; }
+
+.auth-field__prefix {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.auth-field__prefix svg { width: 16px; height: 16px; }
+
+.auth-field__suffix {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  transition: color 0.2s;
+  z-index: 1;
+}
+
+.auth-field__suffix:hover { color: var(--accent); }
+.auth-field__suffix svg { width: 16px; height: 16px; }
+
+.auth-field__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 48px 0 50px;
+  border-radius: 30px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.auth-field__input::placeholder {
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+
+.auth-field__input:hover,
+.auth-field__input:focus {
+  background: rgba(0,135,113,0.15);
+  border-color: var(--accent);
+}
+
+/* ─── Button ─────────────────────────────────────────────────── */
+.auth-btn-wrap {
+  margin-top: 0.75rem;
+}
+
+.auth-button {
+  width: 100%;
+  height: 48px;
+  border-radius: 30px;
+  border: 0;
+  background: #006655;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.645,0.045,0.355,1);
+}
+
+.auth-button:hover {
+  background: #006655;
+  background-image: linear-gradient(270deg, transparent 30%, #009980, transparent 100%);
+  background-repeat: no-repeat;
+  animation: btn-sweep 5s ease-in-out infinite;
+  box-shadow: 0 2px 12px rgba(0,135,113,0.30);
+}
+
+.auth-button:active {
+  transform: scale(0.98);
+}
+
+@keyframes btn-sweep {
+  0%   { background-position: -500px 0; }
+  50%  { background-position: 1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+/* ─── Toast ──────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 1.75rem;
+  right: 1.75rem;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  z-index: 1000;
+  transform: translateY(120%) scale(0.95);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s;
+  pointer-events: none;
+}
+
+.toast.is-visible { transform: translateY(0) scale(1); opacity: 1; }
+
+.toast--ok {
+  background: var(--success-soft);
+  border: 1px solid rgba(58,211,186,0.25);
+  color: var(--success);
+}
+
+.toast--err {
+  background: var(--danger-soft);
+  border: 1px solid rgba(224,65,65,0.22);
+  color: #fca5a5;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .auth-card { padding: 2.25rem 1.75rem; border-radius: 1.25rem; }
+  .auth-card-wrap { padding: 1rem; }
+}
+
+@media (max-width: 768px) {
+  .auth-waves svg { height: 40px; min-height: 40px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* ═══  LIGHT THEME                                            ═══ */
+/* ═══════════════════════════════════════════════════════════════ */
+
+html.light {
+  --bg:          #f0f2f5;
+  --surface:     #ffffff;
+  --surface-2:   #f7f7f9;
+  --panel:       #ffffff;
+  --line:        rgba(0,0,0,0.08);
+  --line-mid:    rgba(0,0,0,0.10);
+  --line-strong: rgba(0,0,0,0.18);
+  --text:        rgba(0,0,0,0.85);
+  --text-dim:    rgba(0,0,0,0.65);
+  --text-faint:  rgba(0,0,0,0.38);
+  --accent:        #008771;
+  --accent-hover:  #009980;
+  --accent-soft:   rgba(0,135,113,0.08);
+  --accent-glow:   rgba(0,135,113,0.14);
+  --success:       #16a34a;
+  --success-soft:  rgba(22,163,74,0.09);
+  --danger:        #dc2626;
+  --danger-soft:   rgba(220,38,38,0.07);
+  --shadow:        0 2px 8px rgba(0,0,0,0.09);
+  --shadow-xs:     0 1px 4px rgba(0,0,0,0.06);
+}
+
+html.light .auth-shell     { background: #dbf5ed; }
+html.light .auth-parallax use { fill: rgba(0,135,113,0.06); }
+html.light .auth-parallax use:nth-child(4) { fill: #c7ebe2; }
+
+html.light .auth-card {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.09);
+}
+
+html.light .auth-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.09);
+}
+
+html.light .auth-field__input {
+  background: #f8f8fa;
+  border-color: rgba(0,0,0,0.10);
+}
+
+html.light .auth-field__input:hover,
+html.light .auth-field__input:focus {
+  background: #e8f4f2;
+  border-color: var(--accent);
+}
+
+html.light .auth-button {
+  background: var(--accent);
+}
+
+html.light .auth-button:hover {
+  background: var(--accent);
+  background-image: linear-gradient(270deg, transparent 30%, #009980, transparent 100%);
+}
+
+html.light .toast--ok {
+  background: rgba(22,163,74,0.09);
+  border-color: rgba(22,163,74,0.22);
+  color: #15803d;
+}
+
+html.light .toast--err {
+  background: rgba(220,38,38,0.07);
+  border-color: rgba(220,38,38,0.18);
+  color: #dc2626;
+}
+
+html.light ::-webkit-scrollbar-thumb { background-color: #c4c4c4; }
+html.light ::-webkit-scrollbar-thumb:hover { background-color: #999; }
