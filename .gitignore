@@ -1,2 +1,5 @@
 *.env
 .env
+CONTEXT.md
+AGENTS.md
+copilot-instructions.md

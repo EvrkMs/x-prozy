@@ -23,6 +23,7 @@ func main() {
 	nodeName := os.Getenv("NODE_NAME")                                      // явное имя ноды (если пусто — os.Hostname)
 	nodeIP := os.Getenv("NODE_IP")                                          // публичный IP (если пусто — автодетект)
 	secretFile := envOrDefault("SECRET_FILE", "/app/data/reconnect.secret") // persist secret
+	caFingerprint := os.Getenv("CA_FINGERPRINT")                            // hex SHA256 CA панели
 
 	if clusterToken == "" {
 		log.Error("CLUSTER_TOKEN is required")
@@ -39,6 +40,7 @@ func main() {
 		NodeName:        nodeName,
 		NodeIP:          nodeIP,
 		SecretFile:      secretFile,
+		CAFingerprint:   caFingerprint,
 	}
 
 	a := agent.New(cfg, log, getStatus)

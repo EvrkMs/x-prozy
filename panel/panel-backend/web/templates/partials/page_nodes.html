@@ -1,6 +1,39 @@
 {{ define "page_nodes" }}
 <div class="dash-page" data-page-panel="nodes">
 
+  <!-- Cluster info -->
+  <div class="cluster-info" id="cluster-info">
+    <div class="cluster-info__header">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16">
+        <rect x="2" y="2" width="12" height="12" rx="2"/>
+        <path d="M5 8h6M8 5v6"/>
+      </svg>
+      <span>Подключение ноды</span>
+    </div>
+    <div class="cluster-info__body">
+      <div class="cluster-info__row">
+        <span class="cluster-info__label">CA Fingerprint</span>
+        <code class="cluster-info__value" id="ca-fingerprint">загрузка…</code>
+        <button class="btn btn--xs btn--ghost" onclick="copyToClipboard(document.getElementById('ca-fingerprint').textContent)" title="Копировать">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14">
+            <rect x="5" y="5" width="8" height="8" rx="1.5"/>
+            <path d="M3 11V3.5A.5.5 0 013.5 3H11"/>
+          </svg>
+        </button>
+      </div>
+      <div class="cluster-info__row">
+        <span class="cluster-info__label">Команда запуска</span>
+        <code class="cluster-info__value cluster-info__value--cmd" id="join-cmd">загрузка…</code>
+        <button class="btn btn--xs btn--ghost" onclick="copyToClipboard(document.getElementById('join-cmd').textContent)" title="Копировать">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14">
+            <rect x="5" y="5" width="8" height="8" rx="1.5"/>
+            <path d="M3 11V3.5A.5.5 0 013.5 3H11"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="node-list node-list--detail" id="node-list-detail">
     <div class="dash-empty" id="node-list-detail-empty">
       <div class="dash-empty__icon">
@@ -17,4 +50,38 @@
   </div>
 
 </div>
+
+<script>
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(function() {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+(function loadClusterInfo() {
+  fetch('{{ .BasePath }}/api/cluster-info')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var fp = d.ca_fingerprint || '—';
+      document.getElementById('ca-fingerprint').textContent = fp;
+      var cmd = 'docker run -d \\\n'
+        + '  -e PANEL_GRPC_ADDR=<PANEL_HOST>:9090 \\\n'
+        + '  -e CLUSTER_TOKEN=<YOUR_TOKEN> \\\n'
+        + '  -e CA_FINGERPRINT=' + fp + ' \\\n'
+        + '  -e NODE_NAME=<NODE_NAME> \\\n'
+        + '  --network host \\\n'
+        + '  x-prozy-node:latest';
+      document.getElementById('join-cmd').textContent = cmd;
+    })
+    .catch(function() {
+      document.getElementById('ca-fingerprint').textContent = 'ошибка загрузки';
+    });
+})();
+</script>
 {{ end }}

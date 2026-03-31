@@ -64,6 +64,7 @@ services:
       CLUSTER_TOKEN: "${CLUSTER_TOKEN:-changeme}"
       NODE_NAME: "${NODE_NAME:-dev-node}"
       SECRET_FILE: "/app/data/reconnect.secret"
+      CA_FINGERPRINT: "${CA_FINGERPRINT:-}"
     depends_on:
       grpc-proxy:
         condition: service_started

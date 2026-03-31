@@ -2,6 +2,12 @@ package agent
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +19,7 @@ import (
 	pb "x-prozy/proto/nodecontrol/v1"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
@@ -25,6 +32,7 @@ type Config struct {
 	NodeName        string // явное имя ноды (если пусто — os.Hostname)
 	NodeIP          string // публичный IP ноды (если пусто — автодетект через ifconfig.me)
 	SecretFile      string // путь к файлу для persist reconnect_secret
+	CAFingerprint   string // hex SHA256 отпечаток CA панели (если пусто — TLS не проверяется)
 }
 
 // StatusCollector — функция, которая возвращает текущие метрики.
@@ -86,9 +94,11 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) connectAndServe(ctx context.Context) error {
+	transportCreds := a.buildTransportCredentials()
+
 	conn, err := grpc.NewClient(
 		a.cfg.PanelAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(transportCreds),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                20 * time.Second,
 			Timeout:             10 * time.Second,
@@ -122,13 +132,22 @@ func (a *Agent) connectAndServe(ctx context.Context) error {
 	}
 
 	hs := &pb.Handshake{
-		ClusterToken: a.cfg.ClusterToken,
-		Hostname:     hostname,
-		Os:           readOSName(),
-		Arch:         runtime.GOARCH,
-		Version:      "0.1.0",
-		PublicIp:     publicIP,
+		Hostname: hostname,
+		Os:       readOSName(),
+		Arch:     runtime.GOARCH,
+		Version:  "0.1.0",
+		PublicIp: publicIP,
 	}
+
+	// HMAC auth: nonce + HMAC-SHA256(nonce, cluster_token).
+	nonce := make([]byte, 32)
+	if _, err := rand.Read(nonce); err != nil {
+		return fmt.Errorf("generate nonce: %w", err)
+	}
+	mac := hmac.New(sha256.New, []byte(a.cfg.ClusterToken))
+	mac.Write(nonce)
+	hs.AuthNonce = nonce
+	hs.AuthHmac = mac.Sum(nil)
 
 	a.mu.RLock()
 	secret := a.reconnectSecret
@@ -319,4 +338,44 @@ func (a *Agent) persistSecret(secret string) {
 	} else {
 		a.log.Debug("reconnect secret persisted", "path", a.cfg.SecretFile)
 	}
+}
+
+// buildTransportCredentials возвращает gRPC transport credentials.
+// Если CA_FINGERPRINT задан — TLS с проверкой отпечатка CA.
+// Если CA_FINGERPRINT пуст — insecure (для обратной совместимости / dev).
+func (a *Agent) buildTransportCredentials() credentials.TransportCredentials {
+	if a.cfg.CAFingerprint == "" {
+		a.log.Warn("CA_FINGERPRINT not set — connecting WITHOUT TLS (insecure)")
+		return insecure.NewCredentials()
+	}
+
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: true, // мы проверяем fingerprint вручную
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return fmt.Errorf("no peer certificates")
+			}
+			// Ищем CA-сертификат (IsCA=true) или берём последний в цепочке.
+			var caCert *x509.Certificate
+			for _, cert := range cs.PeerCertificates {
+				if cert.IsCA {
+					caCert = cert
+					break
+				}
+			}
+			if caCert == nil {
+				// Если CA не найден в leaf certs, проверяем raw последний элемент.
+				caCert = cs.PeerCertificates[len(cs.PeerCertificates)-1]
+			}
+			hash := sha256.Sum256(caCert.Raw)
+			got := hex.EncodeToString(hash[:])
+			if got != a.cfg.CAFingerprint {
+				return fmt.Errorf("CA fingerprint mismatch: got %s, want %s", got, a.cfg.CAFingerprint)
+			}
+			a.log.Debug("CA fingerprint verified", "fingerprint", got)
+			return nil
+		},
+		MinVersion: tls.VersionTLS13,
+	}
+	return credentials.NewTLS(tlsCfg)
 }
