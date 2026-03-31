@@ -28,6 +28,14 @@ type Sample struct {
 	Load1       float64 `json:"load1"`
 	TCPCount    int32   `json:"tcp"`
 	UDPCount    int32   `json:"udp"`
+
+	// Xray metrics
+	XrayRunning     bool   `json:"xray_running"`
+	XrayUptime      uint32 `json:"xray_uptime"`
+	XrayGoroutines  uint32 `json:"xray_goroutines"`
+	XrayMemAlloc    uint64 `json:"xray_mem"`
+	XrayTrafficUp   uint64 `json:"xray_up"`
+	XrayTrafficDown uint64 `json:"xray_down"`
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────
@@ -113,6 +121,13 @@ func (s *Store) Record(nodeID string, snap Snapshot) {
 		Load1:       snap.Load1,
 		TCPCount:    snap.TCPCount,
 		UDPCount:    snap.UDPCount,
+		// Xray
+		XrayRunning:     snap.XrayRunning,
+		XrayUptime:      snap.XrayUptime,
+		XrayGoroutines:  snap.XrayGoroutines,
+		XrayMemAlloc:    snap.XrayMemAlloc,
+		XrayTrafficUp:   snap.XrayTrafficUp,
+		XrayTrafficDown: snap.XrayTrafficDown,
 	}
 
 	if err := s.db.Create(&sample).Error; err != nil {
@@ -159,7 +174,13 @@ func (s *Store) Query(nodeID string, from, to time.Time, limit int) ([]Sample, e
 			CAST(AVG(net_down) AS INTEGER) AS net_down,
 			ROUND(AVG(load1), 2)   AS load1,
 			CAST(AVG(tcp_count) AS INTEGER) AS tcp_count,
-			CAST(AVG(udp_count) AS INTEGER) AS udp_count
+			CAST(AVG(udp_count) AS INTEGER) AS udp_count,
+			MAX(xray_running)              AS xray_running,
+			CAST(AVG(xray_uptime) AS INTEGER)      AS xray_uptime,
+			CAST(AVG(xray_goroutines) AS INTEGER)   AS xray_goroutines,
+			CAST(AVG(xray_mem_alloc) AS INTEGER)    AS xray_mem_alloc,
+			CAST(AVG(xray_traffic_up) AS INTEGER)   AS xray_traffic_up,
+			CAST(AVG(xray_traffic_down) AS INTEGER) AS xray_traffic_down
 		FROM samples
 		WHERE node_id = ? AND timestamp >= ? AND timestamp <= ?
 		GROUP BY (timestamp / ?)

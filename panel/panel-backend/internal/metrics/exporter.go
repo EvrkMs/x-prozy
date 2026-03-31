@@ -36,6 +36,14 @@ type Exporter struct {
 
 	UptimeSeconds *prometheus.GaugeVec
 
+	// ── Xray metrics ─────────────────────────────────────────
+	XrayRunning     *prometheus.GaugeVec
+	XrayUptime      *prometheus.GaugeVec
+	XrayGoroutines  *prometheus.GaugeVec
+	XrayMemAlloc    *prometheus.GaugeVec
+	XrayTrafficUp   *prometheus.GaugeVec
+	XrayTrafficDown *prometheus.GaugeVec
+
 	// ── Panel-level metrics ──────────────────────────────
 	NodesTotal *prometheus.GaugeVec // label: status (online/offline)
 	WSClients  prometheus.Gauge
@@ -127,6 +135,32 @@ func NewExporter() *Exporter {
 			Help: "System uptime in seconds.",
 		}, nodeLabels),
 
+		// Xray
+		XrayRunning: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace, Subsystem: "xray", Name: "running",
+			Help: "Whether Xray is running (1=yes, 0=no).",
+		}, nodeLabels),
+		XrayUptime: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace, Subsystem: "xray", Name: "uptime_seconds",
+			Help: "Xray uptime in seconds.",
+		}, nodeLabels),
+		XrayGoroutines: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace, Subsystem: "xray", Name: "goroutines",
+			Help: "Number of Xray goroutines.",
+		}, nodeLabels),
+		XrayMemAlloc: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace, Subsystem: "xray", Name: "mem_alloc_bytes",
+			Help: "Xray heap alloc in bytes.",
+		}, nodeLabels),
+		XrayTrafficUp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace, Subsystem: "xray", Name: "traffic_up_bytes",
+			Help: "Xray total uplink traffic in bytes.",
+		}, nodeLabels),
+		XrayTrafficDown: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace, Subsystem: "xray", Name: "traffic_down_bytes",
+			Help: "Xray total downlink traffic in bytes.",
+		}, nodeLabels),
+
 		// Panel-level
 		NodesTotal: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace, Name: "nodes_total",
@@ -148,6 +182,8 @@ func NewExporter() *Exporter {
 		e.Load1, e.Load5, e.Load15,
 		e.TCPConnections, e.UDPConnections,
 		e.UptimeSeconds,
+		e.XrayRunning, e.XrayUptime, e.XrayGoroutines,
+		e.XrayMemAlloc, e.XrayTrafficUp, e.XrayTrafficDown,
 		e.NodesTotal, e.WSClients,
 	)
 
@@ -183,6 +219,18 @@ func (e *Exporter) SetNodeMetrics(nodeID, hostname string, snap Snapshot) {
 	e.UDPConnections.With(l).Set(float64(snap.UDPCount))
 
 	e.UptimeSeconds.With(l).Set(float64(snap.Uptime))
+
+	// Xray
+	if snap.XrayRunning {
+		e.XrayRunning.With(l).Set(1)
+	} else {
+		e.XrayRunning.With(l).Set(0)
+	}
+	e.XrayUptime.With(l).Set(float64(snap.XrayUptime))
+	e.XrayGoroutines.With(l).Set(float64(snap.XrayGoroutines))
+	e.XrayMemAlloc.With(l).Set(float64(snap.XrayMemAlloc))
+	e.XrayTrafficUp.With(l).Set(float64(snap.XrayTrafficUp))
+	e.XrayTrafficDown.With(l).Set(float64(snap.XrayTrafficDown))
 }
 
 // RemoveNode удаляет все метрики для ноды (при delete/offline).
@@ -207,6 +255,12 @@ func (e *Exporter) RemoveNode(nodeID, hostname string) {
 	e.TCPConnections.Delete(l)
 	e.UDPConnections.Delete(l)
 	e.UptimeSeconds.Delete(l)
+	e.XrayRunning.Delete(l)
+	e.XrayUptime.Delete(l)
+	e.XrayGoroutines.Delete(l)
+	e.XrayMemAlloc.Delete(l)
+	e.XrayTrafficUp.Delete(l)
+	e.XrayTrafficDown.Delete(l)
 }
 
 // SetNodeCounts обновляет prozy_nodes_total{status=online|offline}.
@@ -240,4 +294,12 @@ type Snapshot struct {
 	TCPCount   int32
 	UDPCount   int32
 	Uptime     uint64
+
+	// Xray runtime metrics
+	XrayRunning     bool
+	XrayUptime      uint32
+	XrayGoroutines  uint32
+	XrayMemAlloc    uint64
+	XrayTrafficUp   uint64
+	XrayTrafficDown uint64
 }

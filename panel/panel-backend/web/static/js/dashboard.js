@@ -241,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="node-card__detail"><span>Сеть ↑/↓</span><span>${fmtBytes(s.net_up || 0)} / ${fmtBytes(s.net_down || 0)}</span></div>
           <div class="node-card__detail"><span>TCP / UDP</span><span>${s.tcp_count || 0} / ${s.udp_count || 0}</span></div>
           <div class="node-card__detail"><span>Load</span><span>${(s.load1 || 0).toFixed(2)} / ${(s.load5 || 0).toFixed(2)} / ${(s.load15 || 0).toFixed(2)}</span></div>
+          <div class="node-card__detail"><span>Xray</span><span class="${s.xray_running ? 'xray-status--on' : 'xray-status--off'}">${s.xray_running ? '● Работает' : '○ Остановлен'}</span></div>
         </div>`;
     } else if (!isOnline) {
       metricsHTML = `<div class="node-card__offline-hint">Нет данных — нода офлайн</div>`;

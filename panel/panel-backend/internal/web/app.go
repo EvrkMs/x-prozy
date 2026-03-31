@@ -125,6 +125,13 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 					TCPCount:    info.Snapshot.TCPCount,
 					UDPCount:    info.Snapshot.UDPCount,
 					Uptime:      info.Snapshot.Uptime,
+					// Xray
+					XrayRunning:     info.Snapshot.XrayRunning,
+					XrayUptime:      info.Snapshot.XrayUptime,
+					XrayGoroutines:  info.Snapshot.XrayGoroutines,
+					XrayMemAlloc:    info.Snapshot.XrayMemAlloc,
+					XrayTrafficUp:   info.Snapshot.XrayTrafficUp,
+					XrayTrafficDown: info.Snapshot.XrayTrafficDown,
 				}
 				prom.SetNodeMetrics(info.Node.ID, info.Node.Hostname, snap)
 				store.Record(info.Node.ID, snap)

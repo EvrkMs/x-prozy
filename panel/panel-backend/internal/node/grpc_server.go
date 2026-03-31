@@ -249,6 +249,13 @@ func (s *GRPCServer) Connect(stream pb.NodeControl_ConnectServer) error {
 				UDPCount:    sr.UdpCount,
 				Uptime:      sr.Uptime,
 				Timestamp:   sr.Timestamp,
+				// Xray metrics
+				XrayRunning:     sr.XrayRunning,
+				XrayUptime:      sr.XrayUptime,
+				XrayGoroutines:  sr.XrayGoroutines,
+				XrayMemAlloc:    sr.XrayMemAlloc,
+				XrayTrafficUp:   sr.XrayTrafficUp,
+				XrayTrafficDown: sr.XrayTrafficDown,
 			})
 
 		default:

@@ -1273,3 +1273,15 @@ html.light .sli__select:hover {
     border-radius: 8px;
   }
 }
+
+/* ── Xray status in node cards ────────────────────────── */
+.xray-status--on {
+  color: var(--accent, #22c55e);
+  font-weight: 600;
+}
+.xray-status--off {
+  color: var(--text-secondary, rgba(255,255,255,0.4));
+}
+html.light .xray-status--off {
+  color: rgba(0,0,0,0.35);
+}

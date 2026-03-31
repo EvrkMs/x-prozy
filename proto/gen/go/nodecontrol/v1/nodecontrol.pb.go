@@ -275,30 +275,37 @@ func (x *Heartbeat) GetTimestamp() int64 {
 
 // StatusReport — полная метрика ноды (CPU, RAM, Disk, Net, Load, Connections).
 type StatusReport struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CpuPercent    float64                `protobuf:"fixed64,1,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
-	CpuCores      int32                  `protobuf:"varint,2,opt,name=cpu_cores,json=cpuCores,proto3" json:"cpu_cores,omitempty"`
-	CpuModel      string                 `protobuf:"bytes,3,opt,name=cpu_model,json=cpuModel,proto3" json:"cpu_model,omitempty"`
-	MemTotal      uint64                 `protobuf:"varint,4,opt,name=mem_total,json=memTotal,proto3" json:"mem_total,omitempty"`
-	MemUsed       uint64                 `protobuf:"varint,5,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty"`
-	MemPercent    float64                `protobuf:"fixed64,6,opt,name=mem_percent,json=memPercent,proto3" json:"mem_percent,omitempty"`
-	SwapTotal     uint64                 `protobuf:"varint,7,opt,name=swap_total,json=swapTotal,proto3" json:"swap_total,omitempty"`
-	SwapUsed      uint64                 `protobuf:"varint,8,opt,name=swap_used,json=swapUsed,proto3" json:"swap_used,omitempty"`
-	SwapPercent   float64                `protobuf:"fixed64,9,opt,name=swap_percent,json=swapPercent,proto3" json:"swap_percent,omitempty"`
-	DiskTotal     uint64                 `protobuf:"varint,10,opt,name=disk_total,json=diskTotal,proto3" json:"disk_total,omitempty"`
-	DiskUsed      uint64                 `protobuf:"varint,11,opt,name=disk_used,json=diskUsed,proto3" json:"disk_used,omitempty"`
-	DiskPercent   float64                `protobuf:"fixed64,12,opt,name=disk_percent,json=diskPercent,proto3" json:"disk_percent,omitempty"`
-	NetUp         uint64                 `protobuf:"varint,13,opt,name=net_up,json=netUp,proto3" json:"net_up,omitempty"` // cumulative bytes
-	NetDown       uint64                 `protobuf:"varint,14,opt,name=net_down,json=netDown,proto3" json:"net_down,omitempty"`
-	Load1         float64                `protobuf:"fixed64,15,opt,name=load1,proto3" json:"load1,omitempty"`
-	Load5         float64                `protobuf:"fixed64,16,opt,name=load5,proto3" json:"load5,omitempty"`
-	Load15        float64                `protobuf:"fixed64,17,opt,name=load15,proto3" json:"load15,omitempty"`
-	TcpCount      int32                  `protobuf:"varint,18,opt,name=tcp_count,json=tcpCount,proto3" json:"tcp_count,omitempty"`
-	UdpCount      int32                  `protobuf:"varint,19,opt,name=udp_count,json=udpCount,proto3" json:"udp_count,omitempty"`
-	Uptime        uint64                 `protobuf:"varint,20,opt,name=uptime,proto3" json:"uptime,omitempty"`       // seconds
-	Timestamp     int64                  `protobuf:"varint,21,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // unix millis
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	CpuPercent  float64                `protobuf:"fixed64,1,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	CpuCores    int32                  `protobuf:"varint,2,opt,name=cpu_cores,json=cpuCores,proto3" json:"cpu_cores,omitempty"`
+	CpuModel    string                 `protobuf:"bytes,3,opt,name=cpu_model,json=cpuModel,proto3" json:"cpu_model,omitempty"`
+	MemTotal    uint64                 `protobuf:"varint,4,opt,name=mem_total,json=memTotal,proto3" json:"mem_total,omitempty"`
+	MemUsed     uint64                 `protobuf:"varint,5,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty"`
+	MemPercent  float64                `protobuf:"fixed64,6,opt,name=mem_percent,json=memPercent,proto3" json:"mem_percent,omitempty"`
+	SwapTotal   uint64                 `protobuf:"varint,7,opt,name=swap_total,json=swapTotal,proto3" json:"swap_total,omitempty"`
+	SwapUsed    uint64                 `protobuf:"varint,8,opt,name=swap_used,json=swapUsed,proto3" json:"swap_used,omitempty"`
+	SwapPercent float64                `protobuf:"fixed64,9,opt,name=swap_percent,json=swapPercent,proto3" json:"swap_percent,omitempty"`
+	DiskTotal   uint64                 `protobuf:"varint,10,opt,name=disk_total,json=diskTotal,proto3" json:"disk_total,omitempty"`
+	DiskUsed    uint64                 `protobuf:"varint,11,opt,name=disk_used,json=diskUsed,proto3" json:"disk_used,omitempty"`
+	DiskPercent float64                `protobuf:"fixed64,12,opt,name=disk_percent,json=diskPercent,proto3" json:"disk_percent,omitempty"`
+	NetUp       uint64                 `protobuf:"varint,13,opt,name=net_up,json=netUp,proto3" json:"net_up,omitempty"` // cumulative bytes
+	NetDown     uint64                 `protobuf:"varint,14,opt,name=net_down,json=netDown,proto3" json:"net_down,omitempty"`
+	Load1       float64                `protobuf:"fixed64,15,opt,name=load1,proto3" json:"load1,omitempty"`
+	Load5       float64                `protobuf:"fixed64,16,opt,name=load5,proto3" json:"load5,omitempty"`
+	Load15      float64                `protobuf:"fixed64,17,opt,name=load15,proto3" json:"load15,omitempty"`
+	TcpCount    int32                  `protobuf:"varint,18,opt,name=tcp_count,json=tcpCount,proto3" json:"tcp_count,omitempty"`
+	UdpCount    int32                  `protobuf:"varint,19,opt,name=udp_count,json=udpCount,proto3" json:"udp_count,omitempty"`
+	Uptime      uint64                 `protobuf:"varint,20,opt,name=uptime,proto3" json:"uptime,omitempty"`       // seconds
+	Timestamp   int64                  `protobuf:"varint,21,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // unix millis
+	// Xray runtime metrics
+	XrayRunning     bool   `protobuf:"varint,22,opt,name=xray_running,json=xrayRunning,proto3" json:"xray_running,omitempty"`               // is Xray process alive
+	XrayUptime      uint32 `protobuf:"varint,23,opt,name=xray_uptime,json=xrayUptime,proto3" json:"xray_uptime,omitempty"`                  // Xray uptime in seconds (from SysStats)
+	XrayGoroutines  uint32 `protobuf:"varint,24,opt,name=xray_goroutines,json=xrayGoroutines,proto3" json:"xray_goroutines,omitempty"`      // Xray goroutine count
+	XrayMemAlloc    uint64 `protobuf:"varint,25,opt,name=xray_mem_alloc,json=xrayMemAlloc,proto3" json:"xray_mem_alloc,omitempty"`          // Xray heap alloc bytes
+	XrayTrafficUp   uint64 `protobuf:"varint,26,opt,name=xray_traffic_up,json=xrayTrafficUp,proto3" json:"xray_traffic_up,omitempty"`       // total uplink bytes (all inbounds, excluding api)
+	XrayTrafficDown uint64 `protobuf:"varint,27,opt,name=xray_traffic_down,json=xrayTrafficDown,proto3" json:"xray_traffic_down,omitempty"` // total downlink bytes (all inbounds, excluding api)
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StatusReport) Reset() {
@@ -474,6 +481,48 @@ func (x *StatusReport) GetUptime() uint64 {
 func (x *StatusReport) GetTimestamp() int64 {
 	if x != nil {
 		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *StatusReport) GetXrayRunning() bool {
+	if x != nil {
+		return x.XrayRunning
+	}
+	return false
+}
+
+func (x *StatusReport) GetXrayUptime() uint32 {
+	if x != nil {
+		return x.XrayUptime
+	}
+	return 0
+}
+
+func (x *StatusReport) GetXrayGoroutines() uint32 {
+	if x != nil {
+		return x.XrayGoroutines
+	}
+	return 0
+}
+
+func (x *StatusReport) GetXrayMemAlloc() uint64 {
+	if x != nil {
+		return x.XrayMemAlloc
+	}
+	return 0
+}
+
+func (x *StatusReport) GetXrayTrafficUp() uint64 {
+	if x != nil {
+		return x.XrayTrafficUp
+	}
+	return 0
+}
+
+func (x *StatusReport) GetXrayTrafficDown() uint64 {
+	if x != nil {
+		return x.XrayTrafficDown
 	}
 	return 0
 }
@@ -842,7 +891,7 @@ const file_nodecontrol_v1_nodecontrol_proto_rawDesc = "" +
 	"auth_nonce\x18\b \x01(\fR\tauthNonce\x12\x1b\n" +
 	"\tauth_hmac\x18\t \x01(\fR\bauthHmac\")\n" +
 	"\tHeartbeat\x12\x1c\n" +
-	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"\xe6\x04\n" +
+	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"\xcd\x06\n" +
 	"\fStatusReport\x12\x1f\n" +
 	"\vcpu_percent\x18\x01 \x01(\x01R\n" +
 	"cpuPercent\x12\x1b\n" +
@@ -869,7 +918,14 @@ const file_nodecontrol_v1_nodecontrol_proto_rawDesc = "" +
 	"\ttcp_count\x18\x12 \x01(\x05R\btcpCount\x12\x1b\n" +
 	"\tudp_count\x18\x13 \x01(\x05R\budpCount\x12\x16\n" +
 	"\x06uptime\x18\x14 \x01(\x04R\x06uptime\x12\x1c\n" +
-	"\ttimestamp\x18\x15 \x01(\x03R\ttimestamp\"\x87\x02\n" +
+	"\ttimestamp\x18\x15 \x01(\x03R\ttimestamp\x12!\n" +
+	"\fxray_running\x18\x16 \x01(\bR\vxrayRunning\x12\x1f\n" +
+	"\vxray_uptime\x18\x17 \x01(\rR\n" +
+	"xrayUptime\x12'\n" +
+	"\x0fxray_goroutines\x18\x18 \x01(\rR\x0exrayGoroutines\x12$\n" +
+	"\x0exray_mem_alloc\x18\x19 \x01(\x04R\fxrayMemAlloc\x12&\n" +
+	"\x0fxray_traffic_up\x18\x1a \x01(\x04R\rxrayTrafficUp\x12*\n" +
+	"\x11xray_traffic_down\x18\x1b \x01(\x04R\x0fxrayTrafficDown\"\x87\x02\n" +
 	"\fPanelMessage\x12C\n" +
 	"\rhandshake_ack\x18\x01 \x01(\v2\x1c.nodecontrol.v1.HandshakeAckH\x00R\fhandshakeAck\x12*\n" +
 	"\x04ping\x18\x02 \x01(\v2\x14.nodecontrol.v1.PingH\x00R\x04ping\x12=\n" +

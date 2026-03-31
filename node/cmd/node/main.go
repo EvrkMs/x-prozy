@@ -10,6 +10,7 @@ import (
 
 	"x-prozy/node/internal/agent"
 	"x-prozy/node/internal/status"
+	"x-prozy/node/internal/xray"
 )
 
 func main() {
@@ -30,6 +31,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Xray manager.
+	xrayBin := envOrDefault("XRAY_BIN", "/app/xray")
+	xrayConfigDir := envOrDefault("XRAY_CONFIG_DIR", "/app/data/xray")
+	xrayAPIAddr := envOrDefault("XRAY_API_ADDR", "127.0.0.1:10085")
+
+	xrayMgr := xray.NewManager(xrayBin, xrayConfigDir, xrayAPIAddr, log)
+
 	// Запускаем фоновый сборщик метрик.
 	getStatus := status.StartCollector(5 * time.Second)
 
@@ -43,7 +51,7 @@ func main() {
 		CAFingerprint:   caFingerprint,
 	}
 
-	a := agent.New(cfg, log, getStatus)
+	a := agent.New(cfg, log, getStatus, xrayMgr)
 
 	// Graceful shutdown.
 	ctx, cancel := context.WithCancel(context.Background())

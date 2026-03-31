@@ -18,6 +18,8 @@ import (
 
 	pb "x-prozy/proto/nodecontrol/v1"
 
+	"x-prozy/node/internal/xray"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -43,6 +45,7 @@ type Agent struct {
 	cfg    Config
 	log    *slog.Logger
 	status StatusCollector
+	xray   *xray.Manager
 
 	// Полученные при handshake данные.
 	mu              sync.RWMutex
@@ -54,7 +57,7 @@ type Agent struct {
 }
 
 // New создаёт новый agent.
-func New(cfg Config, log *slog.Logger, status StatusCollector) *Agent {
+func New(cfg Config, log *slog.Logger, status StatusCollector, xrayMgr *xray.Manager) *Agent {
 	// Загружаем reconnect_secret из файла, если не задан через ENV.
 	if cfg.ReconnectSecret == "" && cfg.SecretFile != "" {
 		if data, err := os.ReadFile(cfg.SecretFile); err == nil {
@@ -67,6 +70,7 @@ func New(cfg Config, log *slog.Logger, status StatusCollector) *Agent {
 		cfg:               cfg,
 		log:               log,
 		status:            status,
+		xray:              xrayMgr,
 		heartbeatInterval: 10 * time.Second,
 		statusInterval:    30 * time.Second,
 	}
@@ -74,6 +78,14 @@ func New(cfg Config, log *slog.Logger, status StatusCollector) *Agent {
 
 // Run запускает agent с reconnect loop. Блокирует до отмены контекста.
 func (a *Agent) Run(ctx context.Context) error {
+	// Start Xray if available.
+	if a.xray != nil && a.xray.Available() {
+		a.log.Info("starting xray")
+		if err := a.xray.Start(ctx); err != nil {
+			a.log.Error("failed to start xray", "error", err)
+		}
+	}
+
 	for {
 		a.log.Info("connecting to panel", "addr", a.cfg.PanelAddr)
 
@@ -280,6 +292,22 @@ func (a *Agent) sendStatus(stream pb.NodeControl_ConnectClient) error {
 	if report == nil {
 		return nil
 	}
+
+	// Merge Xray stats into the report.
+	if a.xray != nil {
+		xs := a.xray.CollectStats()
+		report.XrayRunning = xs.Running
+		if xs.Sys != nil {
+			report.XrayUptime = xs.Sys.Uptime
+			report.XrayGoroutines = xs.Sys.NumGoroutine
+			report.XrayMemAlloc = xs.Sys.Alloc
+		}
+		if xs.Traffic != nil {
+			report.XrayTrafficUp = xs.Traffic.TotalUp
+			report.XrayTrafficDown = xs.Traffic.TotalDown
+		}
+	}
+
 	return stream.Send(&pb.NodeMessage{
 		Payload: &pb.NodeMessage_StatusReport{StatusReport: report},
 	})
@@ -302,7 +330,13 @@ func (a *Agent) recvLoop(ctx context.Context, stream pb.NodeControl_ConnectClien
 
 		case *pb.PanelMessage_ConfigPush:
 			a.log.Info("received config push", "version", p.ConfigPush.Version)
-			// TODO: применить xray config
+			if a.xray != nil {
+				if err := a.xray.ApplyConfig(ctx, p.ConfigPush.ConfigJson); err != nil {
+					a.log.Error("failed to apply xray config", "error", err)
+				} else {
+					a.log.Info("xray config applied successfully", "version", p.ConfigPush.Version)
+				}
+			}
 
 		case *pb.PanelMessage_Disconnect:
 			a.log.Warn("panel requested disconnect", "reason", p.Disconnect.Reason)

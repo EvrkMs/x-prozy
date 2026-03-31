@@ -8,14 +8,17 @@ const ProzyCharts = (() => {
 
   // ── Color palette ──────────────────────────────────────────
   const COLORS = {
-    cpu:     { line: "#22c55e", fill: "rgba(34,197,94,0.10)" },
-    mem:     { line: "#3b82f6", fill: "rgba(59,130,246,0.10)" },
-    disk:    { line: "#f59e0b", fill: "rgba(245,158,11,0.10)" },
-    load:    { line: "#a855f7", fill: "rgba(168,85,247,0.10)" },
-    tcp:     { line: "#06b6d4", fill: "rgba(6,182,212,0.10)" },
-    udp:     { line: "#f43f5e", fill: "rgba(244,63,94,0.10)" },
-    net_up:  { line: "#10b981", fill: "rgba(16,185,129,0.10)" },
-    net_down:{ line: "#6366f1", fill: "rgba(99,102,241,0.10)" },
+    cpu:       { line: "#22c55e", fill: "rgba(34,197,94,0.10)" },
+    mem:       { line: "#3b82f6", fill: "rgba(59,130,246,0.10)" },
+    disk:      { line: "#f59e0b", fill: "rgba(245,158,11,0.10)" },
+    load:      { line: "#a855f7", fill: "rgba(168,85,247,0.10)" },
+    tcp:       { line: "#06b6d4", fill: "rgba(6,182,212,0.10)" },
+    udp:       { line: "#f43f5e", fill: "rgba(244,63,94,0.10)" },
+    net_up:    { line: "#10b981", fill: "rgba(16,185,129,0.10)" },
+    net_down:  { line: "#6366f1", fill: "rgba(99,102,241,0.10)" },
+    xray_mem:  { line: "#ec4899", fill: "rgba(236,72,153,0.10)" },
+    xray_up:   { line: "#14b8a6", fill: "rgba(20,184,166,0.10)" },
+    xray_down: { line: "#8b5cf6", fill: "rgba(139,92,246,0.10)" },
   };
 
   // ── Helpers ────────────────────────────────────────────────
@@ -50,7 +53,7 @@ const ProzyCharts = (() => {
   // Choose a nice formatter based on metric kind
   function pickFormatter(key) {
     if (key === "cpu" || key === "mem" || key === "disk") return fmtPercent;
-    if (key === "net_up" || key === "net_down") return fmtBytes;
+    if (key === "net_up" || key === "net_down" || key === "xray_mem" || key === "xray_up" || key === "xray_down") return fmtBytes;
     if (key === "load") return fmtLoad;
     return fmtNumber;
   }
@@ -237,14 +240,17 @@ const ProzyCharts = (() => {
   // ── Chart config per metric ─────────────────────────────────
 
   const CHART_DEFS = [
-    { key: "cpu",      label: "CPU %",        yMin: 0, yMax: 100 },
-    { key: "mem",      label: "RAM %",        yMin: 0, yMax: 100 },
-    { key: "disk",     label: "Диск %",       yMin: 0, yMax: 100 },
-    { key: "load",     label: "Load 1m",      yMin: 0 },
-    { key: "tcp",      label: "TCP соед.",     yMin: 0 },
-    { key: "udp",      label: "UDP соед.",     yMin: 0 },
-    { key: "net_up",   label: "Сеть ↑ (TX)",  yMin: 0 },
-    { key: "net_down", label: "Сеть ↓ (RX)",  yMin: 0 },
+    { key: "cpu",       label: "CPU %",        yMin: 0, yMax: 100 },
+    { key: "mem",       label: "RAM %",        yMin: 0, yMax: 100 },
+    { key: "disk",      label: "Диск %",       yMin: 0, yMax: 100 },
+    { key: "load",      label: "Load 1m",      yMin: 0 },
+    { key: "tcp",       label: "TCP соед.",     yMin: 0 },
+    { key: "udp",       label: "UDP соед.",     yMin: 0 },
+    { key: "net_up",    label: "Сеть ↑ (TX)",  yMin: 0 },
+    { key: "net_down",  label: "Сеть ↓ (RX)",  yMin: 0 },
+    { key: "xray_mem",  label: "Xray RAM",     yMin: 0 },
+    { key: "xray_up",   label: "Xray ↑",       yMin: 0 },
+    { key: "xray_down", label: "Xray ↓",       yMin: 0 },
   ];
 
   // ── Public: render metrics panel for a node ──────────────────

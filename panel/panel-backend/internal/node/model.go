@@ -66,6 +66,14 @@ type NodeSnapshot struct {
 
 	Uptime    uint64 `json:"uptime"`
 	Timestamp int64  `json:"timestamp"`
+
+	// Xray runtime metrics
+	XrayRunning     bool   `json:"xray_running"`
+	XrayUptime      uint32 `json:"xray_uptime"`
+	XrayGoroutines  uint32 `json:"xray_goroutines"`
+	XrayMemAlloc    uint64 `json:"xray_mem_alloc"`
+	XrayTrafficUp   uint64 `json:"xray_traffic_up"`
+	XrayTrafficDown uint64 `json:"xray_traffic_down"`
 }
 
 // NodeInfo — полная информация для API (node + snapshot).

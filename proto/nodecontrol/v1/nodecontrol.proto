@@ -71,6 +71,14 @@ message StatusReport {
   uint64 uptime        = 20; // seconds
 
   int64  timestamp     = 21; // unix millis
+
+  // Xray runtime metrics
+  bool   xray_running       = 22; // is Xray process alive
+  uint32 xray_uptime        = 23; // Xray uptime in seconds (from SysStats)
+  uint32 xray_goroutines    = 24; // Xray goroutine count
+  uint64 xray_mem_alloc     = 25; // Xray heap alloc bytes
+  uint64 xray_traffic_up    = 26; // total uplink bytes (all inbounds, excluding api)
+  uint64 xray_traffic_down  = 27; // total downlink bytes (all inbounds, excluding api)
 }
 
 // ---------- Panel → Node ----------
