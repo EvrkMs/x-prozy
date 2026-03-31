@@ -42,7 +42,8 @@ func UserFromContext(ctx context.Context) *auth.User {
 }
 
 func redirectOrReject(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/api/") {
+	// API + WebSocket → 401 JSON, остальное → redirect на логин.
+	if strings.HasPrefix(r.URL.Path, "/api/") || strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}

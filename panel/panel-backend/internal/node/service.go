@@ -19,6 +19,10 @@ type Service struct {
 	// In-memory state: подключённые ноды и их метрики.
 	mu        sync.RWMutex
 	snapshots map[string]*NodeSnapshot // node_id -> latest snapshot
+
+	// OnChange вызывается при любом изменении (snapshot, online, offline, delete).
+	// Callback не должен блокировать.
+	OnChange func()
 }
 
 // NewService создаёт сервис для управления нодами.
@@ -120,6 +124,7 @@ func (s *Service) MarkOffline(nodeID string) {
 	s.mu.Unlock()
 
 	s.log.Info("node offline", "node_id", nodeID)
+	s.notify()
 }
 
 // UpdateSnapshot сохраняет последние метрики ноды.
@@ -127,6 +132,7 @@ func (s *Service) UpdateSnapshot(snap *NodeSnapshot) {
 	s.mu.Lock()
 	s.snapshots[snap.NodeID] = snap
 	s.mu.Unlock()
+	s.notify()
 }
 
 // GetSnapshot возвращает последний snapshot для ноды.
@@ -180,7 +186,18 @@ func (s *Service) Delete(nodeID string) error {
 	delete(s.snapshots, nodeID)
 	s.mu.Unlock()
 
-	return s.repo.Delete(nodeID)
+	err := s.repo.Delete(nodeID)
+	if err == nil {
+		s.notify()
+	}
+	return err
+}
+
+// notify вызывает OnChange callback (если задан).
+func (s *Service) notify() {
+	if s.OnChange != nil {
+		s.OnChange()
+	}
 }
 
 // generateSecret генерирует криптобезопасный hex-токен.

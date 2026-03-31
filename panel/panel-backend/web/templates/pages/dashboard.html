@@ -26,7 +26,7 @@
   <div id="toast" class="toast"></div>
 
   <script>window.BASE_PATH = '{{ .BasePath }}';</script>
-  <script src="/static/js/dashboard.js" defer></script>
+  <script src="/static/js/dashboard.js?v={{ .CacheBust }}" defer></script>
 </body>
 </html>
 {{ end }}

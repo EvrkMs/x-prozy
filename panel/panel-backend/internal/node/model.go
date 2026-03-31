@@ -36,36 +36,36 @@ type Node struct {
 
 // NodeSnapshot — текущие метрики ноды (не хранится в БД, только в памяти).
 type NodeSnapshot struct {
-	NodeID string
+	NodeID string `json:"node_id"`
 
-	CPUPercent float64
-	CPUCores   int32
-	CPUModel   string
+	CPUPercent float64 `json:"cpu_percent"`
+	CPUCores   int32   `json:"cpu_cores"`
+	CPUModel   string  `json:"cpu_model"`
 
-	MemTotal   uint64
-	MemUsed    uint64
-	MemPercent float64
+	MemTotal   uint64  `json:"mem_total"`
+	MemUsed    uint64  `json:"mem_used"`
+	MemPercent float64 `json:"mem_percent"`
 
-	SwapTotal   uint64
-	SwapUsed    uint64
-	SwapPercent float64
+	SwapTotal   uint64  `json:"swap_total"`
+	SwapUsed    uint64  `json:"swap_used"`
+	SwapPercent float64 `json:"swap_percent"`
 
-	DiskTotal   uint64
-	DiskUsed    uint64
-	DiskPercent float64
+	DiskTotal   uint64  `json:"disk_total"`
+	DiskUsed    uint64  `json:"disk_used"`
+	DiskPercent float64 `json:"disk_percent"`
 
-	NetUp   uint64
-	NetDown uint64
+	NetUp   uint64 `json:"net_up"`
+	NetDown uint64 `json:"net_down"`
 
-	Load1  float64
-	Load5  float64
-	Load15 float64
+	Load1  float64 `json:"load1"`
+	Load5  float64 `json:"load5"`
+	Load15 float64 `json:"load15"`
 
-	TCPCount int32
-	UDPCount int32
+	TCPCount int32 `json:"tcp_count"`
+	UDPCount int32 `json:"udp_count"`
 
-	Uptime    uint64
-	Timestamp int64 // unix millis
+	Uptime    uint64 `json:"uptime"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 // NodeInfo — полная информация для API (node + snapshot).

@@ -2,31 +2,39 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"x-prozy/panel-backend/internal/auth"
 	"x-prozy/panel-backend/internal/certs"
 	"x-prozy/panel-backend/internal/config"
+	"x-prozy/panel-backend/internal/metrics"
 	"x-prozy/panel-backend/internal/middleware"
 	"x-prozy/panel-backend/internal/node"
 	"x-prozy/panel-backend/internal/render"
 	"x-prozy/panel-backend/internal/settings"
+	"x-prozy/panel-backend/internal/ws"
 )
 
 // App — ядро веб-приложения.
 type App struct {
-	render   *render.Engine
-	auth     *auth.Service
-	settings *settings.Service
-	nodes    *node.Service
-	grpc     *node.GRPCServer
-	certs    *certs.Manager
-	cfg      *config.Config
-	log      *slog.Logger
+	render    *render.Engine
+	auth      *auth.Service
+	settings  *settings.Service
+	nodes     *node.Service
+	grpc      *node.GRPCServer
+	certs     *certs.Manager
+	wsHub     *ws.Hub
+	prom      *metrics.Exporter
+	cfg       *config.Config
+	log       *slog.Logger
+	cacheBust string
 }
 
 const sessionCookieName = "prozy_session"
@@ -63,6 +71,56 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 	}
 	grpcServer := node.NewGRPCServer(nodeSvc, cfg.GRPC.ClusterToken, log)
 
+	// WebSocket hub
+	wsHub := ws.NewHub(log)
+
+	// Prometheus exporter
+	prom := metrics.NewExporter()
+
+	// При любом изменении нод — броадкастим + обновляем Prometheus gauge.
+	nodeSvc.OnChange = func() {
+		list, err := nodeSvc.List()
+		if err != nil {
+			log.Warn("ws: failed to list nodes for broadcast", "error", err)
+			return
+		}
+		wsHub.Broadcast("nodes", list)
+
+		// Prometheus: обновляем метрики.
+		var online, offline int
+		for _, info := range list {
+			if info.Node.Status == "online" {
+				online++
+			} else {
+				offline++
+			}
+			if info.Snapshot != nil {
+				prom.SetNodeMetrics(info.Node.ID, info.Node.Hostname, metrics.Snapshot{
+					CPUPercent:  info.Snapshot.CPUPercent,
+					CPUCores:    info.Snapshot.CPUCores,
+					MemTotal:    info.Snapshot.MemTotal,
+					MemUsed:     info.Snapshot.MemUsed,
+					MemPercent:  info.Snapshot.MemPercent,
+					SwapTotal:   info.Snapshot.SwapTotal,
+					SwapUsed:    info.Snapshot.SwapUsed,
+					DiskTotal:   info.Snapshot.DiskTotal,
+					DiskUsed:    info.Snapshot.DiskUsed,
+					DiskPercent: info.Snapshot.DiskPercent,
+					NetUp:       info.Snapshot.NetUp,
+					NetDown:     info.Snapshot.NetDown,
+					Load1:       info.Snapshot.Load1,
+					Load5:       info.Snapshot.Load5,
+					Load15:      info.Snapshot.Load15,
+					TCPCount:    info.Snapshot.TCPCount,
+					UDPCount:    info.Snapshot.UDPCount,
+					Uptime:      info.Snapshot.Uptime,
+				})
+			}
+		}
+		prom.SetNodeCounts(online, offline)
+		prom.SetWSClients(wsHub.ClientCount())
+	}
+
 	// TLS certificates for gRPC
 	tlsDir := filepath.Join(filepath.Dir(cfg.Database.DSN), "tls")
 	certsMgr, err := certs.NewManager(tlsDir, log)
@@ -81,14 +139,17 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 	}
 
 	return &App{
-		render:   engine,
-		auth:     authService,
-		settings: settingsSvc,
-		nodes:    nodeSvc,
-		grpc:     grpcServer,
-		certs:    certsMgr,
-		cfg:      cfg,
-		log:      log,
+		render:    engine,
+		auth:      authService,
+		settings:  settingsSvc,
+		nodes:     nodeSvc,
+		grpc:      grpcServer,
+		certs:     certsMgr,
+		wsHub:     wsHub,
+		prom:      prom,
+		cfg:       cfg,
+		log:       log,
+		cacheBust: fmt.Sprintf("%d", time.Now().Unix()),
 	}, nil
 }
 
@@ -98,10 +159,11 @@ func (a *App) Routes() http.Handler {
 
 	// Static files (без секретного пути — ресурсы должны грузиться всегда)
 	fs := http.FileServer(http.Dir(filepath.Join("web", "static")))
-	mux.Handle("/static/", http.StripPrefix("/static/", fs))
+	mux.Handle("/static/", http.StripPrefix("/static/", noCacheHandler(fs)))
 
-	// Health (без секретного пути)
+	// Health + Metrics (без auth — Prometheus должен скрейпить)
 	mux.HandleFunc("GET /healthz", a.handleHealthz)
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// Public
 	mux.HandleFunc("GET /login", a.handleLoginPage)
@@ -127,6 +189,9 @@ func (a *App) Routes() http.Handler {
 	// Cluster info API
 	mux.Handle("GET /api/cluster-info", protected(http.HandlerFunc(a.apiClusterInfo)))
 
+	// WebSocket (auth via cookie — проверяем до upgrade)
+	mux.Handle("GET /ws", protected(http.HandlerFunc(a.handleWS)))
+
 	return middleware.Chain(
 		a.secretPathHandler(mux),
 		middleware.Recover(a.log),
@@ -146,7 +211,7 @@ func (a *App) secretPathHandler(next http.Handler) http.Handler {
 		}
 
 		// Пути без защиты
-		if r.URL.Path == "/healthz" || strings.HasPrefix(r.URL.Path, "/static/") {
+		if r.URL.Path == "/healthz" || r.URL.Path == "/metrics" || strings.HasPrefix(r.URL.Path, "/static/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -254,10 +319,11 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.render.Render(w, "dashboard_page", DashboardPageData{
-		Title:    "Prozy — Dashboard",
-		Username: user.Username,
-		Settings: a.settingsData(),
-		BasePath: a.basePath(),
+		Title:     "Prozy — Dashboard",
+		Username:  user.Username,
+		Settings:  a.settingsData(),
+		BasePath:  a.basePath(),
+		CacheBust: a.cacheBust,
 	})
 }
 
@@ -565,4 +631,20 @@ func (a *App) apiDeleteNode(w http.ResponseWriter, r *http.Request) {
 
 	a.log.Info("node deleted", "node_id", id)
 	render.JSONOk(w, map[string]string{"message": "Нода удалена"})
+}
+
+// --- WebSocket --------------------------------------------------------------
+
+// handleWS апгрейдит HTTP → WebSocket. Auth уже проверена middleware.
+func (a *App) handleWS(w http.ResponseWriter, r *http.Request) {
+	a.wsHub.Accept(w, r)
+}
+
+// noCacheHandler wraps a handler with no-cache headers for development.
+func noCacheHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		next.ServeHTTP(w, r)
+	})
 }

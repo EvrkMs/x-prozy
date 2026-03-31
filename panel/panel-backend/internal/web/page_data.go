@@ -12,10 +12,11 @@ type LoginPageData struct {
 
 // DashboardPageData — данные для дашборда.
 type DashboardPageData struct {
-	Title    string
-	Username string
-	Settings SettingsData
-	BasePath string // секретный URI-префикс (или "")
+	Title      string
+	Username   string
+	Settings   SettingsData
+	BasePath   string // секретный URI-префикс (или "")
+	CacheBust  string // timestamp для cache-bust static-ресурсов
 }
 
 // SettingsData — текущие настройки панели для отображения.

@@ -141,8 +141,8 @@ document.addEventListener("DOMContentLoaded", () => {
     toastTimer = setTimeout(() => toastEl.classList.remove("is-visible"), 3000);
   }
 
-  // ── Nodes polling ─────────────────────────────────────────
-  const NODE_POLL_MS = 5000;
+  // ── Nodes: WS real-time + polling fallback ─────────────
+  const POLL_FALLBACK_MS = 10000; // fallback polling (only when WS is down)
 
   function fmtBytes(b) {
     if (b < 1024) return b + " B";
@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const json = await res.json();
         if (res.ok) {
           toast(json.message || "Нода удалена", "ok");
-          pollNodes();
+          // WS broadcast will update automatically; no need to pollNodes()
         } else {
           toast(json.error || "Ошибка удаления", "err");
         }
@@ -283,18 +283,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return card;
   }
 
-  async function fetchNodes() {
-    try {
-      const url = (window.BASE_PATH || "") + "/api/nodes";
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data || json;
-    } catch { return null; }
-  }
-
-  async function pollNodes() {
-    const nodes = await fetchNodes();
+  // ── Render helpers ──────────────────────────────────────
+  function updateNodeUI(nodes) {
     if (!nodes) return;
 
     const totalEl  = document.getElementById("nodes-total");
@@ -314,9 +304,7 @@ document.addEventListener("DOMContentLoaded", () => {
       navCount.style.display = nodes.length > 0 ? "" : "none";
     }
 
-    // Render overview list
     renderNodeList("node-list", "node-list-empty", nodes);
-    // Render detail list (nodes page)
     renderNodeList("node-list-detail", "node-list-detail-empty", nodes);
   }
 
@@ -326,7 +314,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!container) return;
 
     if (!nodes.length) {
-      // Remove cards, show empty
       container.querySelectorAll(".node-card").forEach(c => c.remove());
       if (emptyEl) emptyEl.style.display = "";
       return;
@@ -334,7 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (emptyEl) emptyEl.style.display = "none";
 
-    // Reconcile: update existing, add new, remove stale
     const existing = new Map();
     container.querySelectorAll(".node-card").forEach(c => {
       existing.set(c.dataset.nodeId, c);
@@ -342,12 +328,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const incomingIds = new Set(nodes.map(n => n.node.id));
 
-    // Remove stale
     for (const [id, el] of existing) {
       if (!incomingIds.has(id)) el.remove();
     }
 
-    // Add or update
     for (const info of nodes) {
       const id = info.node.id;
       const card = buildNodeCard(info);
@@ -359,8 +343,89 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Initial fetch + polling
-  pollNodes();
-  setInterval(pollNodes, NODE_POLL_MS);
+  // ── HTTP fetch (fallback + initial load) ────────────────
+  async function fetchNodes() {
+    try {
+      const url = (window.BASE_PATH || "") + "/api/nodes";
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data || json;
+    } catch { return null; }
+  }
+
+  // ── WebSocket with auto-reconnect ───────────────────────
+  let ws = null;
+  let wsRetryDelay = 1000;
+  let fallbackTimer = null;
+
+  function wsUrl() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const base = (window.BASE_PATH || "");
+    return `${proto}//${location.host}${base}/ws`;
+  }
+
+  function connectWS() {
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+
+    try {
+      ws = new WebSocket(wsUrl());
+    } catch {
+      scheduleWSReconnect();
+      return;
+    }
+
+    ws.onopen = () => {
+      wsRetryDelay = 1000; // reset backoff
+      stopFallbackPolling();
+      // Сразу запрашиваем актуальные данные (WS только пушит изменения).
+      fetchNodes().then(n => n && updateNodeUI(n));
+    };
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === "nodes") {
+          updateNodeUI(msg.data);
+        }
+      } catch { /* ignore malformed */ }
+    };
+
+    ws.onclose = () => {
+      ws = null;
+      startFallbackPolling();
+      scheduleWSReconnect();
+    };
+
+    ws.onerror = () => {
+      // onclose will fire after this
+    };
+  }
+
+  function scheduleWSReconnect() {
+    setTimeout(connectWS, wsRetryDelay);
+    wsRetryDelay = Math.min(wsRetryDelay * 1.5, 30000); // max 30s
+  }
+
+  // Fallback polling — active only when WS is disconnected.
+  function startFallbackPolling() {
+    if (fallbackTimer) return;
+    fallbackTimer = setInterval(async () => {
+      const nodes = await fetchNodes();
+      if (nodes) updateNodeUI(nodes);
+    }, POLL_FALLBACK_MS);
+  }
+
+  function stopFallbackPolling() {
+    if (fallbackTimer) {
+      clearInterval(fallbackTimer);
+      fallbackTimer = null;
+    }
+  }
+
+  // ── Boot ────────────────────────────────────────────────
+  // Initial HTTP fetch (instant), then connect WS for real-time.
+  fetchNodes().then(n => n && updateNodeUI(n));
+  connectWS();
 
 });
