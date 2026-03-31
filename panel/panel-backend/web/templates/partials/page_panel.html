@@ -15,7 +15,7 @@
         <button class="sli__save" type="submit">Сохранить</button>
       </div>
     </form>
-    <form data-api="/api/settings/secret-path" class="sli sli--last">
+    <form data-api="/api/settings/secret-path" class="sli">
       <div class="sli__meta">
         <div class="sli__title">Секретный путь</div>
         <div class="sli__desc">Панель доступна только по URL с этим префиксом. После сохранения — автоперенаправление</div>
@@ -26,6 +26,32 @@
         <button class="sli__save" type="submit">Сохранить</button>
       </div>
     </form>
+    <form data-api="/api/settings/metrics-retention" class="sli sli--last" data-retention-form>
+      <div class="sli__meta">
+        <div class="sli__title">Хранение метрик</div>
+        <div class="sli__desc">Как долго хранить собранные метрики нод. Старые данные удаляются автоматически</div>
+      </div>
+      <div class="sli__control">
+        <input class="sli__input sli__input--short" id="ret-value" name="value" type="number" min="1"
+               value="{{ .Settings.MetricsRetention }}" placeholder="24">
+        <select class="sli__select" id="ret-unit" name="unit">
+          <option value="1">часов</option>
+          <option value="24">дней</option>
+          <option value="168">недель</option>
+        </select>
+        <button class="sli__save" type="submit">Сохранить</button>
+      </div>
+    </form>
+    <script>
+      (function(){
+        var h = {{ .Settings.MetricsRetention }};
+        var valEl = document.getElementById("ret-value");
+        var unitEl = document.getElementById("ret-unit");
+        if (h > 0 && h % 168 === 0) { valEl.value = h / 168; unitEl.value = "168"; }
+        else if (h > 0 && h % 24 === 0) { valEl.value = h / 24; unitEl.value = "24"; }
+        else { valEl.value = h; unitEl.value = "1"; }
+      })();
+    </script>
   </div>
 </div>
 {{ end }}

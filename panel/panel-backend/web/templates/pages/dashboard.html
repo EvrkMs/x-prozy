@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   {{ template "head_assets" . }}
-  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="stylesheet" href="/static/css/dashboard.css?v={{ .CacheBust }}">
 </head>
 <body>
   <div class="dash">
@@ -26,6 +26,7 @@
   <div id="toast" class="toast"></div>
 
   <script>window.BASE_PATH = '{{ .BasePath }}';</script>
+  <script src="/static/js/charts.js?v={{ .CacheBust }}" defer></script>
   <script src="/static/js/dashboard.js?v={{ .CacheBust }}" defer></script>
 </body>
 </html>

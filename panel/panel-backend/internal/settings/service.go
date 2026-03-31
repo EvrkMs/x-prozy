@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -57,4 +58,28 @@ func (s *Service) SetSecretPath(path string) error {
 		path = strings.TrimRight(path, "/")
 	}
 	return s.repo.Set(KeySecretPath, path)
+}
+
+// --- Metrics Retention -------------------------------------------------------
+
+// MetricsRetentionHours возвращает время хранения метрик в часах.
+func (s *Service) MetricsRetentionHours() int {
+	if v, ok := s.repo.Get(KeyMetricsRetention); ok {
+		if h, err := strconv.Atoi(v); err == nil && h > 0 {
+			return h
+		}
+	}
+	h, _ := strconv.Atoi(defaults[KeyMetricsRetention])
+	return h
+}
+
+// SetMetricsRetentionHours сохраняет время хранения метрик в часах.
+func (s *Service) SetMetricsRetentionHours(hours int) error {
+	if hours < 1 {
+		return fmt.Errorf("settings: retention must be >= 1 hour")
+	}
+	if hours > 8760 {
+		return fmt.Errorf("settings: retention must be <= 8760 hours (365 days)")
+	}
+	return s.repo.Set(KeyMetricsRetention, strconv.Itoa(hours))
 }

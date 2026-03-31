@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -32,6 +33,7 @@ type App struct {
 	certs     *certs.Manager
 	wsHub     *ws.Hub
 	prom      *metrics.Exporter
+	store     *metrics.Store // встроенное хранилище метрик (замена Prometheus)
 	cfg       *config.Config
 	log       *slog.Logger
 	cacheBust string
@@ -74,10 +76,19 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 	// WebSocket hub
 	wsHub := ws.NewHub(log)
 
-	// Prometheus exporter
+	// Prometheus exporter (для /metrics endpoint — совместимость с внешним мониторингом)
 	prom := metrics.NewExporter()
 
-	// При любом изменении нод — броадкастим + обновляем Prometheus gauge.
+	// Встроенное хранилище метрик (замена внешнего Prometheus)
+	// Приоритет: DB-настройка → ENV → default(24).
+	retentionHours := settingsSvc.MetricsRetentionHours()
+	store, err := metrics.NewStore(repo.DB(), retentionHours, log)
+	if err != nil {
+		return nil, fmt.Errorf("metrics store: %w", err)
+	}
+	store.StartCleanupLoop(context.Background())
+
+	// При любом изменении нод — броадкастим + обновляем Prometheus gauge + пишем в store.
 	nodeSvc.OnChange = func() {
 		list, err := nodeSvc.List()
 		if err != nil {
@@ -95,7 +106,7 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 				offline++
 			}
 			if info.Snapshot != nil {
-				prom.SetNodeMetrics(info.Node.ID, info.Node.Hostname, metrics.Snapshot{
+				snap := metrics.Snapshot{
 					CPUPercent:  info.Snapshot.CPUPercent,
 					CPUCores:    info.Snapshot.CPUCores,
 					MemTotal:    info.Snapshot.MemTotal,
@@ -114,7 +125,9 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 					TCPCount:    info.Snapshot.TCPCount,
 					UDPCount:    info.Snapshot.UDPCount,
 					Uptime:      info.Snapshot.Uptime,
-				})
+				}
+				prom.SetNodeMetrics(info.Node.ID, info.Node.Hostname, snap)
+				store.Record(info.Node.ID, snap)
 			}
 		}
 		prom.SetNodeCounts(online, offline)
@@ -147,6 +160,7 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 		certs:     certsMgr,
 		wsHub:     wsHub,
 		prom:      prom,
+		store:     store,
 		cfg:       cfg,
 		log:       log,
 		cacheBust: fmt.Sprintf("%d", time.Now().Unix()),
@@ -180,6 +194,7 @@ func (a *App) Routes() http.Handler {
 	mux.Handle("POST /api/settings/password", protected(http.HandlerFunc(a.apiUpdatePassword)))
 	mux.Handle("POST /api/settings/credentials", protected(http.HandlerFunc(a.apiUpdateCredentials)))
 	mux.Handle("POST /api/settings/secret-path", protected(http.HandlerFunc(a.apiUpdateSecretPath)))
+	mux.Handle("POST /api/settings/metrics-retention", protected(http.HandlerFunc(a.apiUpdateMetricsRetention)))
 
 	// Node API
 	mux.Handle("GET /api/nodes", protected(http.HandlerFunc(a.apiListNodes)))
@@ -188,6 +203,9 @@ func (a *App) Routes() http.Handler {
 
 	// Cluster info API
 	mux.Handle("GET /api/cluster-info", protected(http.HandlerFunc(a.apiClusterInfo)))
+
+	// Metrics history API (встроенное хранилище, замена Prometheus)
+	mux.Handle("GET /api/metrics/{id}/history", protected(http.HandlerFunc(a.apiMetricsHistory)))
 
 	// WebSocket (auth via cookie — проверяем до upgrade)
 	mux.Handle("GET /ws", protected(http.HandlerFunc(a.handleWS)))
@@ -331,8 +349,9 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (a *App) settingsData() SettingsData {
 	return SettingsData{
 		// DB-backed (редактируемые через панель)
-		SessionDuration: a.settings.SessionDuration().String(),
-		SecretPath:      a.settings.SecretPath(),
+		SessionDuration:  a.settings.SessionDuration().String(),
+		SecretPath:       a.settings.SecretPath(),
+		MetricsRetention: a.settings.MetricsRetentionHours(),
 		// ENV-only (только для просмотра)
 		PanelAddr: a.cfg.Server.Addr,
 		PanelPort: a.cfg.Server.Port,
@@ -560,6 +579,25 @@ func (a *App) apiUpdateSecretPath(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *App) apiUpdateMetricsRetention(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Hours int `json:"hours"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+
+	if err := a.settings.SetMetricsRetentionHours(req.Hours); err != nil {
+		render.JSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	a.store.SetRetention(req.Hours)
+	a.log.Info("metrics retention updated", "hours", req.Hours)
+	render.JSONOk(w, map[string]any{"message": "Время хранения обновлено"})
+}
+
 // --- gRPC -------------------------------------------------------------------
 
 // StartGRPC запускает gRPC-сервер в фоне. Вызывать из main.go.
@@ -624,6 +662,9 @@ func (a *App) apiDeleteNode(w http.ResponseWriter, r *http.Request) {
 	// Отключаем ноду если подключена.
 	_ = a.grpc.DisconnectNode(id, "deleted by admin")
 
+	// Удаляем историю метрик ноды.
+	a.store.DeleteNode(id)
+
 	if err := a.nodes.Delete(id); err != nil {
 		render.JSONError(w, http.StatusInternalServerError, "не удалось удалить ноду")
 		return
@@ -647,4 +688,76 @@ func noCacheHandler(next http.Handler) http.Handler {
 		w.Header().Set("Pragma", "no-cache")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// --- Metrics History API ----------------------------------------------------
+
+// apiMetricsHistory — GET /api/metrics/{id}/history?range=1h&limit=500
+// Поддерживаемые range: 30m, 1h, 6h, 12h, 24h, 7d (default: 1h).
+func (a *App) apiMetricsHistory(w http.ResponseWriter, r *http.Request) {
+	nodeID := r.PathValue("id")
+	if nodeID == "" {
+		render.JSONError(w, http.StatusBadRequest, "missing node id")
+		return
+	}
+
+	// Проверяем что нода существует.
+	if _, err := a.nodes.Get(nodeID); err != nil {
+		render.JSONError(w, http.StatusNotFound, "нода не найдена")
+		return
+	}
+
+	dur := parseRange(r.URL.Query().Get("range"))
+	limit := 1000
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := parsePositiveInt(l); err == nil && v > 0 && v <= 5000 {
+			limit = v
+		}
+	}
+
+	now := time.Now()
+	from := now.Add(-dur)
+
+	samples, err := a.store.Query(nodeID, from, now, limit)
+	if err != nil {
+		render.JSONError(w, http.StatusInternalServerError, "ошибка запроса метрик")
+		return
+	}
+
+	render.JSONOk(w, map[string]any{
+		"node_id": nodeID,
+		"range":   dur.String(),
+		"count":   len(samples),
+		"samples": samples,
+	})
+}
+
+// parseRange парсит строку range в Duration. По умолчанию 1h.
+func parseRange(s string) time.Duration {
+	switch s {
+	case "30m":
+		return 30 * time.Minute
+	case "1h", "":
+		return 1 * time.Hour
+	case "6h":
+		return 6 * time.Hour
+	case "12h":
+		return 12 * time.Hour
+	case "24h":
+		return 24 * time.Hour
+	case "7d":
+		return 7 * 24 * time.Hour
+	default:
+		if d, err := time.ParseDuration(s); err == nil && d > 0 {
+			return d
+		}
+		return 1 * time.Hour
+	}
+}
+
+// parsePositiveInt парсит строку в int > 0.
+func parsePositiveInt(s string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
 }

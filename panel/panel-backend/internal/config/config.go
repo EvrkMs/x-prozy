@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 )
 
 // Config содержит только инфраструктурные параметры (ENV).
@@ -11,6 +12,12 @@ type Config struct {
 	Server   ServerConfig
 	GRPC     GRPCConfig
 	Log      LogConfig
+	Metrics  MetricsConfig
+}
+
+// MetricsConfig — параметры встроенного хранилища метрик.
+type MetricsConfig struct {
+	RetentionHours int // сколько часов хранить историю (default: 24)
 }
 
 type DatabaseConfig struct {
@@ -54,12 +61,24 @@ func Load() *Config {
 			Format: envOrDefault("LOG_FORMAT", "text"),
 			Level:  envOrDefault("LOG_LEVEL", "info"),
 		},
+		Metrics: MetricsConfig{
+			RetentionHours: envOrDefaultInt("METRICS_RETENTION_HOURS", 24),
+		},
 	}
 }
 
 func envOrDefault(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return fallback
+}
+
+func envOrDefaultInt(key string, fallback int) int {
+	if s := os.Getenv(key); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			return v
+		}
 	}
 	return fallback
 }

@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
       document.documentElement.classList.toggle("light");
       const isLight = document.documentElement.classList.contains("light");
       localStorage.setItem(THEME_KEY, isLight ? "light" : "dark");
+      // Redraw charts on theme change
+      if (typeof ProzyCharts !== 'undefined') ProzyCharts.redraw();
     });
   }
 
@@ -69,7 +71,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const url  = (window.BASE_PATH || "") + form.dataset.api;
       const data = new FormData(form);
       const body = {};
-      data.forEach((v, k) => (body[k] = v));
+      data.forEach((v, k) => {
+        const inp = form.querySelector(`[name="${k}"]`);
+        body[k] = inp && inp.type === "number" ? Number(v) : v;
+      });
+
+      // Retention form: convert value + unit → hours
+      if (form.hasAttribute("data-retention-form")) {
+        const val  = Number(body.value) || 1;
+        const mult = Number(body.unit)  || 1;
+        body.hours = val * mult;
+        delete body.value;
+        delete body.unit;
+      }
 
       // Client-side password validation
       if (body.new_password || body.confirm_password) {
@@ -256,6 +270,13 @@ document.addEventListener("DOMContentLoaded", () => {
       ${metricsHTML}
       <div class="node-card__footer">
         <span class="node-card__id" title="${n.id}">${n.id.substring(0, 8)}…</span>
+        <button class="node-card__metrics-btn" data-metrics-node="${n.id}" title="Метрики">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="2 12 5 6 8 9 11 3 14 7"/>
+            <line x1="2" y1="14" x2="14" y2="14"/>
+          </svg>
+          <span>Метрики</span>
+        </button>
         <span class="node-card__addr">${n.public_ip || n.remote_addr || "—"}</span>
       </div>
     `;
@@ -271,12 +292,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const json = await res.json();
         if (res.ok) {
           toast(json.message || "Нода удалена", "ok");
-          // WS broadcast will update automatically; no need to pollNodes()
         } else {
           toast(json.error || "Ошибка удаления", "err");
         }
       } catch {
         toast("Ошибка сети", "err");
+      }
+    });
+
+    // Metrics chart handler — open in modal
+    card.querySelector("[data-metrics-node]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (typeof ProzyCharts !== 'undefined') {
+        ProzyCharts.openForNode(n.id, n.hostname || n.id.substring(0, 8));
       }
     });
 

@@ -22,8 +22,9 @@ type DashboardPageData struct {
 // SettingsData — текущие настройки панели для отображения.
 type SettingsData struct {
 	// DB-backed (редактируемые через панель)
-	SessionDuration string // "168h", "24h", ...
-	SecretPath      string // "/mysecret" или ""
+	SessionDuration    string // "168h", "24h", ...
+	SecretPath         string // "/mysecret" или ""
+	MetricsRetention   int    // часы хранения метрик (24, 168, ...)
 
 	// ENV-only (только для просмотра, не редактируются)
 	PanelAddr string // PANEL_ADDR

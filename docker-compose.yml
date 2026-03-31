@@ -77,26 +77,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Prometheus — сбор и хранение метрик.
-  prometheus:
-    image: prom/prometheus:v3.4.0
-    container_name: x-prozy-prometheus
-    ports:
-      - "9091:9090"
-    volumes:
-      - ./config/prometheus:/etc/prometheus:ro
-      - prometheus-data:/prometheus
-    depends_on:
-      panel:
-        condition: service_healthy
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "2"
-
 volumes:
   panel-data:
   node-data:
-  prometheus-data:

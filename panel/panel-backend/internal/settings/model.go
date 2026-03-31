@@ -11,12 +11,14 @@ type Setting struct {
 
 // Ключи настроек, хранящихся в БД.
 const (
-	KeySessionDuration = "session_duration"
-	KeySecretPath      = "panel_secret_path"
+	KeySessionDuration  = "session_duration"
+	KeySecretPath       = "panel_secret_path"
+	KeyMetricsRetention = "metrics_retention_hours"
 )
 
 // values по умолчанию, если запись в БД отсутствует.
 var defaults = map[string]string{
-	KeySessionDuration: "168h",
-	KeySecretPath:      "",
+	KeySessionDuration:  "168h",
+	KeySecretPath:       "",
+	KeyMetricsRetention: "24",
 }
