@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const pageMeta = {
     overview:     { title: "Обзор системы",   crumb: "дешборд / обзор системы" },
     nodes:        { title: "Список нод",      crumb: "ноды / список нод" },
+    connections:  { title: "Конфигурация",    crumb: "подключения / конфигурация" },
     account:      { title: "Учётная запись",  crumb: "настройки / учётная запись" },
     panel:        { title: "Конфигурация",    crumb: "настройки / конфигурация" },
     integrations: { title: "Интеграции",      crumb: "настройки / интеграции" },

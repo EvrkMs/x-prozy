@@ -15,6 +15,7 @@
       <div class="dash-content">
         {{ template "page_overview" . }}
         {{ template "page_nodes" . }}
+        {{ template "page_connections" . }}
         {{ template "page_account" . }}
         {{ template "page_panel" . }}
         {{ template "page_integrations" . }}
@@ -27,6 +28,7 @@
 
   <script>window.BASE_PATH = '{{ .BasePath }}';</script>
   <script src="/static/js/charts.js?v={{ .CacheBust }}" defer></script>
+  <script src="/static/js/connections.js?v={{ .CacheBust }}" defer></script>
   <script src="/static/js/dashboard.js?v={{ .CacheBust }}" defer></script>
 </body>
 </html>

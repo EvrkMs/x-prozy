@@ -1,0 +1,231 @@
+{{ define "page_connections" }}
+<div class="dash-page" data-page-panel="connections">
+
+  <!-- Toolbar -->
+  <div class="ib-toolbar">
+    <h2 class="ib-toolbar__title">Подключения Xray</h2>
+    <div class="ib-toolbar__actions">
+      <button class="btn btn--outline btn--sm" id="ib-push-btn" title="Отправить конфиг на все ноды">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v10M4 5l4-4 4 4"/><path d="M2 11v2.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V11"/></svg>
+        Пуш
+      </button>
+      <button class="btn btn--primary btn--sm" id="ib-add-btn">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+        Добавить
+      </button>
+    </div>
+  </div>
+
+  <!-- Inbound list -->
+  <div class="ib-list" id="ib-list">
+    <div class="dash-empty" id="ib-list-empty" style="display:none">
+      <div class="dash-empty__icon">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 4h12M2 8h12M2 12h12"/>
+        </svg>
+      </div>
+      <div class="dash-empty__title">Нет подключений</div>
+      <div class="dash-empty__desc">
+        Создайте первое подключение Xray.<br>
+        Поддерживаемые протоколы: VLESS, VMess, Trojan, Shadowsocks.
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create / Edit inbound -->
+  <div class="ib-modal-overlay" id="ib-modal" style="display:none">
+    <div class="ib-modal">
+      <div class="ib-modal__head">
+        <h3 class="ib-modal__title" id="ib-modal-title">Новое подключение</h3>
+        <button class="ib-modal__close" id="ib-modal-close">&times;</button>
+      </div>
+      <form class="ib-modal__form" id="ib-form">
+        <input type="hidden" id="ib-id" value="">
+
+        <!-- Row: Remark + Enable -->
+        <div class="ib-form-row">
+          <div class="ib-field ib-field--grow">
+            <label for="ib-remark">Название</label>
+            <input type="text" id="ib-remark" placeholder="My VLESS" required>
+          </div>
+          <div class="ib-field ib-field--toggle">
+            <label>Статус</label>
+            <label class="ib-switch">
+              <input type="checkbox" id="ib-enable" checked>
+              <span class="ib-switch__slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Row: Protocol + Port + Listen -->
+        <div class="ib-form-row">
+          <div class="ib-field">
+            <label for="ib-protocol">Протокол</label>
+            <select id="ib-protocol">
+              <option value="vless">VLESS</option>
+              <option value="vmess">VMess</option>
+              <option value="trojan">Trojan</option>
+              <option value="shadowsocks">Shadowsocks</option>
+            </select>
+          </div>
+          <div class="ib-field">
+            <label for="ib-port">Порт</label>
+            <input type="number" id="ib-port" min="1" max="65535" placeholder="443" required>
+          </div>
+          <div class="ib-field">
+            <label for="ib-listen">Listen</label>
+            <input type="text" id="ib-listen" placeholder="0.0.0.0">
+          </div>
+        </div>
+
+        <!-- Transport -->
+        <div class="ib-form-row">
+          <div class="ib-field">
+            <label for="ib-network">Транспорт</label>
+            <select id="ib-network">
+              <option value="tcp">TCP</option>
+              <option value="ws">WebSocket</option>
+              <option value="grpc">gRPC</option>
+              <option value="httpupgrade">HTTPUpgrade</option>
+            </select>
+          </div>
+          <div class="ib-field">
+            <label for="ib-security">Безопасность</label>
+            <select id="ib-security">
+              <option value="none">None</option>
+              <option value="tls">TLS</option>
+              <option value="reality">Reality</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- WS path (conditional) -->
+        <div class="ib-form-row" id="ib-ws-row" style="display:none">
+          <div class="ib-field ib-field--grow">
+            <label for="ib-ws-path">WebSocket Path</label>
+            <input type="text" id="ib-ws-path" placeholder="/">
+          </div>
+        </div>
+
+        <!-- gRPC service name (conditional) -->
+        <div class="ib-form-row" id="ib-grpc-row" style="display:none">
+          <div class="ib-field ib-field--grow">
+            <label for="ib-grpc-service">gRPC Service Name</label>
+            <input type="text" id="ib-grpc-service" placeholder="">
+          </div>
+        </div>
+
+        <!-- TLS fields (conditional) -->
+        <div id="ib-tls-fields" style="display:none">
+          <div class="ib-form-row">
+            <div class="ib-field ib-field--grow">
+              <label for="ib-sni">SNI</label>
+              <input type="text" id="ib-sni" placeholder="example.com">
+            </div>
+          </div>
+        </div>
+
+        <!-- Reality fields (conditional) -->
+        <div id="ib-reality-fields" style="display:none">
+          <div class="ib-form-row">
+            <div class="ib-field">
+              <label for="ib-reality-dest">Dest</label>
+              <input type="text" id="ib-reality-dest" placeholder="www.google.com:443">
+            </div>
+            <div class="ib-field">
+              <label for="ib-reality-sni">Server Names</label>
+              <input type="text" id="ib-reality-sni" placeholder="www.google.com">
+            </div>
+          </div>
+          <div class="ib-form-row">
+            <div class="ib-field ib-field--grow">
+              <label for="ib-reality-private">Private Key (x25519)</label>
+              <div class="ib-field__with-btn">
+                <input type="text" id="ib-reality-private" placeholder="">
+                <button type="button" class="btn btn--outline btn--xs" id="ib-gen-keys" title="Сгенерировать пару ключей x25519">⟳ Ключи</button>
+              </div>
+            </div>
+            <div class="ib-field ib-field--grow">
+              <label for="ib-reality-public">Public Key</label>
+              <input type="text" id="ib-reality-public" placeholder="" readonly>
+            </div>
+          </div>
+          <div class="ib-form-row">
+            <div class="ib-field ib-field--grow">
+              <label for="ib-reality-shortids">Short IDs (через запятую)</label>
+              <div class="ib-field__with-btn">
+                <input type="text" id="ib-reality-shortids" placeholder="abcdef01">
+                <button type="button" class="btn btn--outline btn--xs" id="ib-gen-shortids" title="Сгенерировать Short IDs">⟳ IDs</button>
+              </div>
+            </div>
+          </div>
+          <div class="ib-form-row">
+            <div class="ib-field">
+              <label for="ib-reality-fingerprint">Fingerprint</label>
+              <select id="ib-reality-fingerprint">
+                <option value="chrome" selected>Chrome</option>
+                <option value="firefox">Firefox</option>
+                <option value="safari">Safari</option>
+                <option value="ios">iOS</option>
+                <option value="android">Android</option>
+                <option value="edge">Edge</option>
+                <option value="random">Random</option>
+                <option value="randomized">Randomized</option>
+              </select>
+            </div>
+            <div class="ib-field ib-field--grow">
+              <label for="ib-reality-spiderx">SpiderX</label>
+              <input type="text" id="ib-reality-spiderx" placeholder="/" value="/">
+            </div>
+          </div>
+          <!-- ML-DSA-65 (post-quantum) — требует Xray 25.5+ -->
+          <!--
+          <div class="ib-form-row">
+            <div class="ib-field ib-field--grow">
+              <label for="ib-reality-mldsa-seed">ML-DSA-65 Seed</label>
+              <div class="ib-field__with-btn">
+                <input type="text" id="ib-reality-mldsa-seed" placeholder="">
+                <button type="button" class="btn btn--outline btn--xs" id="ib-gen-mldsa" title="Сгенерировать ML-DSA-65 пару">⟳ PQ</button>
+              </div>
+            </div>
+            <div class="ib-field ib-field--grow">
+              <label for="ib-reality-mldsa-verify">ML-DSA-65 Verify</label>
+              <input type="text" id="ib-reality-mldsa-verify" placeholder="" readonly>
+            </div>
+          </div>
+          -->
+        </div>
+
+        <!-- Sniffing -->
+        <div class="ib-form-row">
+          <div class="ib-field ib-field--toggle">
+            <label>Sniffing</label>
+            <label class="ib-switch">
+              <input type="checkbox" id="ib-sniffing" checked>
+              <span class="ib-switch__slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Node targets -->
+        <div class="ib-section">
+          <div class="ib-section__head">
+            <h4>Ноды</h4>
+            <span class="ib-section__hint">Пусто = все ноды</span>
+          </div>
+          <div class="ib-node-targets" id="ib-node-targets">
+            <!-- populated by JS -->
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="ib-form-actions">
+          <button type="button" class="btn btn--outline" id="ib-cancel">Отмена</button>
+          <button type="submit" class="btn btn--primary" id="ib-save">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{{ end }}

@@ -2,6 +2,9 @@ package web
 
 import (
 	"context"
+	"crypto/ecdh"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -15,12 +18,15 @@ import (
 	"x-prozy/panel-backend/internal/auth"
 	"x-prozy/panel-backend/internal/certs"
 	"x-prozy/panel-backend/internal/config"
+	"x-prozy/panel-backend/internal/inbound"
 	"x-prozy/panel-backend/internal/metrics"
 	"x-prozy/panel-backend/internal/middleware"
 	"x-prozy/panel-backend/internal/node"
 	"x-prozy/panel-backend/internal/render"
 	"x-prozy/panel-backend/internal/settings"
 	"x-prozy/panel-backend/internal/ws"
+
+	pb "x-prozy/proto/nodecontrol/v1"
 )
 
 // App — ядро веб-приложения.
@@ -29,6 +35,7 @@ type App struct {
 	auth      *auth.Service
 	settings  *settings.Service
 	nodes     *node.Service
+	inbounds  *inbound.Service
 	grpc      *node.GRPCServer
 	certs     *certs.Manager
 	wsHub     *ws.Hub
@@ -72,6 +79,13 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 		return nil, err
 	}
 	grpcServer := node.NewGRPCServer(nodeSvc, cfg.GRPC.ClusterToken, log)
+
+	// Inbound service (подключения Xray)
+	ibRepo, err := inbound.NewRepository(repo.DB())
+	if err != nil {
+		return nil, fmt.Errorf("inbound repo: %w", err)
+	}
+	ibSvc := inbound.NewService(ibRepo, log)
 
 	// WebSocket hub
 	wsHub := ws.NewHub(log)
@@ -141,6 +155,29 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 		prom.SetWSClients(wsHub.ClientCount())
 	}
 
+	// При изменении inbounds — пушим конфиг на все подключённые ноды.
+	ibSvc.OnChange = func() {
+		nodes, err := nodeSvc.List()
+		if err != nil {
+			log.Warn("inbound: failed to list nodes", "error", err)
+			return
+		}
+		for _, info := range nodes {
+			if info.Node.Status != node.StatusOnline {
+				continue
+			}
+			configJSON, err := ibSvc.BuildXrayConfig(info.Node.ID)
+			if err != nil {
+				log.Warn("inbound: failed to build config", "node_id", info.Node.ID, "error", err)
+				continue
+			}
+			pb := newConfigPush(configJSON)
+			if err := grpcServer.SendToNode(info.Node.ID, pb); err != nil {
+				log.Warn("inbound: push failed", "node_id", info.Node.ID, "error", err)
+			}
+		}
+	}
+
 	// TLS certificates for gRPC
 	tlsDir := filepath.Join(filepath.Dir(cfg.Database.DSN), "tls")
 	certsMgr, err := certs.NewManager(tlsDir, log)
@@ -163,6 +200,7 @@ func NewApp(cfg *config.Config, log *slog.Logger) (*App, error) {
 		auth:      authService,
 		settings:  settingsSvc,
 		nodes:     nodeSvc,
+		inbounds:  ibSvc,
 		grpc:      grpcServer,
 		certs:     certsMgr,
 		wsHub:     wsHub,
@@ -213,6 +251,18 @@ func (a *App) Routes() http.Handler {
 
 	// Metrics history API (встроенное хранилище, замена Prometheus)
 	mux.Handle("GET /api/metrics/{id}/history", protected(http.HandlerFunc(a.apiMetricsHistory)))
+
+	// Inbound API (подключения Xray)
+	mux.Handle("GET /api/inbounds", protected(http.HandlerFunc(a.apiListInbounds)))
+	mux.Handle("POST /api/inbounds", protected(http.HandlerFunc(a.apiCreateInbound)))
+	mux.Handle("GET /api/inbounds/{id}", protected(http.HandlerFunc(a.apiGetInbound)))
+	mux.Handle("PUT /api/inbounds/{id}", protected(http.HandlerFunc(a.apiUpdateInbound)))
+	mux.Handle("DELETE /api/inbounds/{id}", protected(http.HandlerFunc(a.apiDeleteInbound)))
+	mux.Handle("POST /api/inbounds/{id}/toggle", protected(http.HandlerFunc(a.apiToggleInbound)))
+	mux.Handle("POST /api/inbounds/push", protected(http.HandlerFunc(a.apiPushInbounds)))
+
+	// Utils
+	mux.Handle("GET /api/utils/x25519", protected(http.HandlerFunc(a.apiGenX25519)))
 
 	// WebSocket (auth via cookie — проверяем до upgrade)
 	mux.Handle("GET /ws", protected(http.HandlerFunc(a.handleWS)))
@@ -765,6 +815,165 @@ func parseRange(s string) time.Duration {
 // parsePositiveInt парсит строку в int > 0.
 func parsePositiveInt(s string) (int, error) {
 	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
+}
+
+// --- Inbound API (подключения Xray) ----------------------------------------
+
+func (a *App) apiListInbounds(w http.ResponseWriter, _ *http.Request) {
+	list, err := a.inbounds.List()
+	if err != nil {
+		render.JSONError(w, http.StatusInternalServerError, "не удалось получить список подключений")
+		return
+	}
+	render.JSONOk(w, list)
+}
+
+func (a *App) apiGetInbound(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUintParam(r.PathValue("id"))
+	if err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	ib, err := a.inbounds.Get(id)
+	if err != nil {
+		render.JSONError(w, http.StatusNotFound, "подключение не найдено")
+		return
+	}
+	render.JSONOk(w, ib)
+}
+
+func (a *App) apiCreateInbound(w http.ResponseWriter, r *http.Request) {
+	var ib inbound.Inbound
+	if err := json.NewDecoder(r.Body).Decode(&ib); err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := a.inbounds.Create(&ib); err != nil {
+		render.JSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	render.JSONOk(w, ib)
+}
+
+func (a *App) apiUpdateInbound(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUintParam(r.PathValue("id"))
+	if err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	existing, err := a.inbounds.Get(id)
+	if err != nil {
+		render.JSONError(w, http.StatusNotFound, "подключение не найдено")
+		return
+	}
+
+	var ib inbound.Inbound
+	if err := json.NewDecoder(r.Body).Decode(&ib); err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	ib.ID = existing.ID
+	ib.CreatedAt = existing.CreatedAt
+
+	if err := a.inbounds.Update(&ib); err != nil {
+		render.JSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	render.JSONOk(w, ib)
+}
+
+func (a *App) apiDeleteInbound(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUintParam(r.PathValue("id"))
+	if err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	if err := a.inbounds.Delete(id); err != nil {
+		render.JSONError(w, http.StatusInternalServerError, "не удалось удалить подключение")
+		return
+	}
+	render.JSONOk(w, map[string]string{"message": "Подключение удалено"})
+}
+
+func (a *App) apiToggleInbound(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUintParam(r.PathValue("id"))
+	if err != nil {
+		render.JSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	ib, err := a.inbounds.Toggle(id)
+	if err != nil {
+		render.JSONError(w, http.StatusInternalServerError, "не удалось переключить подключение")
+		return
+	}
+	render.JSONOk(w, ib)
+}
+
+// apiPushInbounds — принудительный пуш конфигов на все онлайн ноды.
+func (a *App) apiPushInbounds(w http.ResponseWriter, _ *http.Request) {
+	nodes, err := a.nodes.List()
+	if err != nil {
+		render.JSONError(w, http.StatusInternalServerError, "не удалось получить список нод")
+		return
+	}
+
+	pushed := 0
+	for _, info := range nodes {
+		if info.Node.Status != node.StatusOnline {
+			continue
+		}
+		configJSON, err := a.inbounds.BuildXrayConfig(info.Node.ID)
+		if err != nil {
+			a.log.Warn("push: build config failed", "node_id", info.Node.ID, "error", err)
+			continue
+		}
+		pb := newConfigPush(configJSON)
+		if err := a.grpc.SendToNode(info.Node.ID, pb); err != nil {
+			a.log.Warn("push: send failed", "node_id", info.Node.ID, "error", err)
+			continue
+		}
+		pushed++
+	}
+
+	render.JSONOk(w, map[string]any{
+		"message": fmt.Sprintf("Конфиг отправлен на %d нод", pushed),
+		"pushed":  pushed,
+	})
+}
+
+// newConfigPush создаёт PanelMessage с ConfigPush.
+func newConfigPush(configJSON string) *pb.PanelMessage {
+	return &pb.PanelMessage{
+		Payload: &pb.PanelMessage_ConfigPush{
+			ConfigPush: &pb.ConfigPush{
+				ConfigJson: configJSON,
+			},
+		},
+	}
+}
+
+// apiGenX25519 генерирует пару x25519 ключей для Reality.
+func (a *App) apiGenX25519(w http.ResponseWriter, _ *http.Request) {
+	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		render.JSONError(w, http.StatusInternalServerError, "ошибка генерации ключей")
+		return
+	}
+	pub := priv.PublicKey()
+	render.JSONOk(w, map[string]string{
+		"private_key": base64.RawStdEncoding.EncodeToString(priv.Bytes()),
+		"public_key":  base64.RawStdEncoding.EncodeToString(pub.Bytes()),
+	})
+}
+
+func parseUintParam(s string) (uint, error) {
+	var n uint
 	_, err := fmt.Sscanf(s, "%d", &n)
 	return n, err
 }
